@@ -1,0 +1,12 @@
+#.gitignore
+/hybServKit
+/uploadfiles
+/tags
+/include/mc_config.h
+*.o
+*.a
+*.bak
+cscope.*
+uwb*
+core.*
+
