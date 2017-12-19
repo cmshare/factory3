@@ -137,7 +137,7 @@ void msg_sendto(TMcMsg *msg,TNetAddr *peerAddr,TNetAddr *forwardAddr)
 
 	 //发送消息包
 	 hsk_sendData(msg,msgLen,peerAddr);
-	 if(forwardAddr)hsk_sendData(msg,(msgLen<MAXLEN_MSG_UDP)?msgLen:MAXLEN_MSG_UDP,forwardAddr); //forwardAddr必定是UDP地址
+	 if(forwardAddr)hsk_sendData(msg,(msgLen<MAXLEN_UDP_DATAGRAM)?msgLen:MAXLEN_UDP_DATAGRAM,forwardAddr); //forwardAddr必定是UDP地址
 	 	
  	 #ifdef DEBUG_MODE
      Log_AppendData(msg,msgLen,peerAddr,TRUE);

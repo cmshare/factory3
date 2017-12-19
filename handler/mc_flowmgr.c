@@ -176,23 +176,19 @@ void monitor_flow(void)
             if(db_queryf("update `mc_simcard` set flowstate=%d where id=%u and flowstate=%d",flowstate_new,simcard,flowstate_old))
 	    { if(flowstate_new)
 	      { char strWarning[256];
-                int dev_group=atoi(row[2]); 
-                char *devTitle=(dev_group==ZSWL_DEV_GROUP1 ||dev_group==ZSWL_DEV_GROUP2)?"设备":"小瞳";
                 printf("####query flow send notify to msgbox:%s\r\n",row[1]);
 		if(flowstate_new==-2){
-	          sprintf(strWarning,"%s温馨提醒：您的流量套餐已用完，为保证您的正常使用，请登录APP通过“流量管理”进行充值",devTitle);
-                  push_device_msg(devID,WARNINGMSG_FLOWDEPLETE,strWarning);
+                  push_device_msg(devID,WARNINGMSG_FLOWDEPLETE,"小瞳温馨提醒：您的流量套餐已用完，为保证您的正常使用，请登录APP通过“流量管理”进行充值");
                 }
 		else if(flowstate_new==-1){
                   //int curMonth,curDay;
 		  time_t timep=time(NULL);
                   struct tm *pToday=gmtime(&timep); /*转换为struct tm结构的UTC时间*/
-	          sprintf(strWarning,"%s温馨提醒：截至%d月%d日，您的流量套餐已使用%uM，剩余流量%uM，为保证您的正常使用，请及时登录APP通过“流量管理”进行续费充值",devTitle,pToday->tm_mon+1,pToday->tm_mday,total_used,total_remains);
+	          sprintf(strWarning,"小瞳温馨提醒：截至%d月%d日，您的流量套餐已使用%uM，剩余流量%uM，为保证您的正常使用，请及时登录APP通过“流量管理”进行续费充值",pToday->tm_mon+1,pToday->tm_mday,total_used,total_remains);
 		  push_device_msg(devID,WARNINGMSG_LOWFLOW,strWarning);		
 		}	
 		else{
-	          sprintf(strWarning,"%s温馨提醒：您的流量套餐即将到期，为保证您的正常使用，请及时登录APP通过“流量管理”进行续费充值",devTitle);
-                  push_device_msg(devID,WARNINGMSG_FLOWTOEXPIRE,strWarning);
+                  push_device_msg(devID,WARNINGMSG_FLOWTOEXPIRE,"小瞳温馨提醒：您的流量套餐即将到期，为保证您的正常使用，请及时登录APP通过“流量管理”进行续费充值");
                 }
               }
             }	

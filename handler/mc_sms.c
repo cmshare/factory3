@@ -1,5 +1,12 @@
 #include "mc_routine.h"
 //确保本文件是utf-8编码存储
+//---------------------------------------------------------------------------
+#define ZSWL_USR_GROUP               6
+#define ZSWL_DEV_GROUP1              19
+#define ZSWL_DEV_GROUP2              23
+#define ZSWL_SMS_ACCOUNT            "zswl2016"
+#define ZSWL_SMS_PASSWORD           "miao@qjt4ZS"
+//---------------------------------------------------------------------------
 
 //漫道科技短信接口(签名：喵星科技)
 static char params_pattern[]="account="SMS_ACCOUNT"&pswd="SMS_PASSWORD"&mobile=%s&msg=%s&needstatus=false";

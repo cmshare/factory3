@@ -23,39 +23,38 @@ static void SetSocketBuffer(int sockd,int recvBufsize,int sendBufsize)
   }else printf("SET SO_SNDBUF failed\r\n");	
 }
 //---------------------------------------------------------------------------
-static BOOL packet_checksum_and_decrypt(TMcPacket *packet)
-{ TMcMsg *msg=&packet->msg;
-	int msgLen=MC_MSG_SIZE(msg);
-	if(msg_ValidChecksum(msg,msgLen))
-	{	packet->terminal=(msg->sessionid)?(TTerminal *)dtmr_find(terminalLinks,msg->sessionid,0,NULL,(msg->msgid==MSG_TSR_HEARTBEAT)?HEARTBEAT_OVERTIME_S:0):NULL;
-		if(packet->terminal)
-		{	if(packet->terminal->spyAddr.ip)
-		  { hsk_sendData(msg,(msgLen<MAXLEN_MSG_UDP)?msgLen:MAXLEN_MSG_UDP,&packet->terminal->spyAddr);
-		  }
-		  if(packet->peerAddr.ip!=packet->terminal->loginAddr.ip || (packet->peerAddr.socket==svrUdpSocket&& packet->peerAddr.port!=packet->terminal->loginAddr.port))
-      { //分配的sessionid与IP地址是绑定的关系，如果不对应表示sessionid已经失效。
-  	    //由于TCP与UDP有不同的端口，所以只验证UDP端口的绑定关系；
-  	    #if 0
-  	    static error_count=0;
-  	    error_count++; 
-  	    if(packet->peerAddr.socket==svrUdpSocket&& packet->peerAddr.port!=packet->terminal->loginAddr.port)
-  	    { printf("####%2d#######packet->peerAddr.socket==svrUdpSocket&& packet->peerAddr.port!=packet->terminal->loginAddr.port,%u!=%u::%d::%u\r\n",error_count,packet->peerAddr.port,packet->terminal->loginAddr.port,packet->terminal->term_type,packet->terminal->id);  	    	
-  	    }
-  	    #endif
-  	    packet->terminal=NULL;
-  	    
+static BOOL packet_checksum_and_decrypt(TMcPacket *packet){
+  TMcMsg *msg=&packet->msg;
+  int msgLen=MC_MSG_SIZE(msg);
+  if(msg_ValidChecksum(msg,msgLen)){
+    packet->terminal=(msg->sessionid)?(TTerminal *)dtmr_find(terminalLinks,msg->sessionid,0,NULL,(msg->msgid==MSG_TSR_HEARTBEAT)?HEARTBEAT_OVERTIME_S:0):NULL;
+    if(packet->terminal){
+      if(packet->terminal->spyAddr.ip){
+        hsk_sendData(msg,(msgLen<MAXLEN_UDP_DATAGRAM)?msgLen:MAXLEN_UDP_DATAGRAM,&packet->terminal->spyAddr);
       }
+      if(packet->peerAddr.ip!=packet->terminal->loginAddr.ip || (packet->peerAddr.socket==svrUdpSocket&& packet->peerAddr.port!=packet->terminal->loginAddr.port)){
+       //分配的sessionid与IP地址是绑定的关系，如果不对应表示sessionid已经失效。
+       //由于TCP与UDP有不同的端口，所以只验证UDP端口的绑定关系；
+        #if 0
+        static error_count=0;
+        error_count++; 
+        if(packet->peerAddr.socket==svrUdpSocket&& packet->peerAddr.port!=packet->terminal->loginAddr.port){
+          printf("####%2d#######packet->peerAddr.socket==svrUdpSocket&& packet->peerAddr.port!=packet->terminal->loginAddr.port,%u!=%u::%d::%u\r\n",error_count,packet->peerAddr.port,packet->terminal->loginAddr.port,packet->terminal->term_type,packet->terminal->id);  	    	
   	}
-		if(msg->bodylen>0 && msg->encrypt>ENCRYPTION_NONE) msg_decrypt(msg);
-	  return TRUE;		
-	}
-	return FALSE;
+        #endif
+        packet->terminal=NULL;
+      }
+    }
+    if(msg->bodylen>0 && msg->encrypt>ENCRYPTION_NONE) msg_decrypt(msg);
+    return TRUE;		
+  }
+  return FALSE;
 }
 //---------------------------------------------------------------------------
-TMcPacket *NET_RecvPacket(void *dgram){
-   TMcPacket *packet=(TMcPacket *)dgram;
+static TMcPacket *NET_RecvPacket(void *dgramBuffer,int bufferSize){
+   TMcPacket *packet=(TMcPacket *)dgramBuffer;
    TMcMsg *msg=&packet->msg;
-   int msgsize,sliceLen=hsk_readData(msg,MAXLEN_MSG_UDP,&packet->peerAddr);
+   int msgsize,sliceLen=hsk_readData(msg,bufferSize-sizeof(TMcPacket),&packet->peerAddr);
 
    #ifdef DEBUG_MODE
     Log_AppendData(msg,sliceLen,&packet->peerAddr,FALSE);
@@ -64,7 +63,7 @@ TMcPacket *NET_RecvPacket(void *dgram){
    if(sliceLen>sizeof(TMcMsg)){
       msgsize=MC_MSG_SIZE(msg);
       if(sliceLen==msgsize && packet_checksum_and_decrypt(packet))return packet; 
-      else if(msg->bodylen>MAXLEN_MSG_TCP)msgsize=0;
+      else if(msgsize>MAXLEN_MSG_PACKET)msgsize=0;
    }
    else{
      if(!sliceLen)return NULL;
@@ -86,10 +85,11 @@ TMcPacket *NET_RecvPacket(void *dgram){
    return NULL;  	
 }
 //---------------------------------------------------------------------------
-static void *mc_dispatch(void *handler)
-{ void *pbuf=malloc(sizeof(TMcPacket)+MAXLEN_MSG_UDP);
+static void *mc_dispatch_proc(void *handler){
+  int bufferSize=sizeof(TMcPacket)+MAXLEN_IP_FRAGMENT;
+  void *pbuf=malloc(bufferSize);
   while(1)//process user request packet  
-  { TMcPacket *packet=NET_RecvPacket(pbuf);
+  { TMcPacket *packet=NET_RecvPacket(pbuf,bufferSize);
     if(packet)
     {  if(packet->terminal)
     	{ DBLog_AppendMsg(&packet->msg,packet->terminal,FALSE);
@@ -101,22 +101,25 @@ static void *mc_dispatch(void *handler)
   return NULL;
 }
 //---------------------------------------------------------------------------
-void mc_handler(void* handler)
-{ int i;
-	for(i=0;i<NUM_DISPATCH_THREAD;i++)
-	{	pthread_t _thread=0;
-		pthread_create(&_thread, NULL,mc_dispatch,handler);
-		//printf("Create dispatch-thread-%02d...%s!\r\n",i+1,(_thread)?"OK":"failed");	
-	}
-  puts("Maow daemon service Ver "MEOW_SERVICE_VERSION" @"WEB_SERVER_HOST",running...");
+void mc_schedule(void){
+  extern void mc_dispatchmsg(TMcPacket *);
+  int i;
+  for(i=0;i<NUM_DISPATCH_THREAD;i++){
+    pthread_t _thread=0;
+    pthread_create(&_thread, NULL,mc_dispatch_proc,(void *)mc_dispatchmsg);
+    //printf("Create dispatch-thread-%02d...%s!\r\n",i+1,(_thread)?"OK":"failed");	
+  }
+  puts("UWB daemon service Ver "MEOW_SERVICE_VERSION" @"WEB_SERVER_HOST",running...");
 }
 //---------------------------------------------------------------------------
 void net_init(void){
-   if(hsk_init(SERVICE_PORT_UDP,SERVICE_PORT_TCP,MAXLEN_MSG_TCP,SIZE_NET_RECV_BUFFER)){
+   if(hsk_init(SERVICE_PORT_TCP,SERVICE_PORT_UDP,MAXLEN_UDP_DATAGRAM,SIZE_NET_RECV_BUFFER)){
+       int udp_port_array[]={SERVICE_UWB_PORT1,SERVICE_UWB_PORT2,SERVICE_UWB_PORT3};
        svrUdpSocket=hsk_getUdpSocket();
        svrTcpSocket=hsk_getTcpSocket();
        SetSocketBuffer(svrUdpSocket,MAX_SOCKET_RECV_MEM,MAX_SOCKET_SEND_MEM);
        SetSocketBuffer(svrTcpSocket,MAX_SOCKET_RECV_MEM,MAX_SOCKET_SEND_MEM);
+       hsk_append_udp(udp_port_array,3,SIZE_UWB_RECV_BUFFER);
    }
    else{
       Log_AppendText("Net init error!");

@@ -324,7 +324,7 @@ void Handle_MSG_USR_GETUSERHEAD(TMcPacket *packet)
   }
   if(userid>0)
   { extern U32  Userlogo_Load(U32 userid,void *dataBuffer,int bufszie);
-    int maxImageDataLen=MAXLEN_MSG_TCP-(sizeof(TMcMsg)+sizeof(TMSG_SUA_GETUSERHEAD)+1);
+    int maxImageDataLen=MAXLEN_MSG_PACKET-(sizeof(TMcMsg)+sizeof(TMSG_SUA_GETUSERHEAD)+1);
     TMcMsg *ackmsg=msg_alloc(MSG_SUA_GETUSERHEAD,maxImageDataLen);
     TMSG_SUA_GETUSERHEAD *ackbody=(TMSG_SUA_GETUSERHEAD *)ackmsg->body;
     ackbody->ack_synid=packet->msg.synid;
@@ -718,7 +718,7 @@ void Handle_MSG_DSR_NOTIFY_SNAPSHOT(TMcPacket *packet){
       int devGroupID=atoi(row[1]); 
       char strTime[32];
       str_fromTime(strTime,"%Y/%m/%d %H:%M:%S",time(NULL));
-      int contentLen=sprintf(strWarning,"%s%s在%s检测到一次震动，请您及时确认车辆状况是否异常",(devGroupID==ZSWL_DEV_GROUP1||devGroupID==ZSWL_DEV_GROUP2)?"设备":"小瞳",row[0],strTime);  
+      int contentLen=sprintf(strWarning,"小瞳%s在%s检测到一次震动，请您及时确认车辆状况是否异常",row[0],strTime);  
       mysql_free_result(res);
       res=db_queryf("select resname from `mc_snapshot` where termid=%d and property=1 and timestamp=%u",packet->terminal->id,req->timestamp);
       if(res){
@@ -748,7 +748,7 @@ void Handle_MSG_DSR_NOTIFY_STRIKE(TMcPacket *packet){
     while((row = mysql_fetch_row(res))){
       if(row[1]){
         int devGroupID=atoi(row[2]); 
-        sprintf(strWarning,"%s%s在%s检测到一次震动，请您及时确认车辆状况是否异常",(devGroupID==ZSWL_DEV_GROUP1||devGroupID==ZSWL_DEV_GROUP2)?"设备":"小瞳",row[1],strTime);  
+        sprintf(strWarning,"小瞳%s在%s检测到一次震动，请您及时确认车辆状况是否异常",row[1],strTime);  
         push_device_msg(atoi(row[0]),WARNINGMSG_VIBRATE,strWarning);//震动预警
       }
     }
@@ -766,8 +766,7 @@ void Handle_MSG_DSR_NOTIFY_LOWPOWER(TMcPacket *packet){
     while((row = mysql_fetch_row(res))){
       if(row[1]){
         int devGroupID=atoi(row[2]); 
-        char *devName=(devGroupID==ZSWL_DEV_GROUP1||devGroupID==ZSWL_DEV_GROUP2)?"设备":"小瞳";
-        sprintf(strWarning,"%s%s检测电瓶电压过低，将暂停远程功能，请及时发动汽车充电。如车辆发动时发现%s未启动，请手动开机。",devName,row[1],devName);  
+        sprintf(strWarning,"小瞳%s检测电瓶电压过低，将暂停远程功能，请及时发动汽车充电。如车辆发动时发现小瞳未启动，请手动开机。",row[1]);  
         push_device_msg(atoi(row[0]),WARNINGMSG_LOWPOWER,strWarning);//缺电预警
       }
     }

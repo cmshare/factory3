@@ -7,7 +7,6 @@
 #include "hybServKit.h"
 #include "mc_config.h"
 #include "mc_intern.h"
-#include "mc_string.h"
 #include "mc_msg.h"
 //---------------------------------------------------------------------------
 int  app_exepath(char *pathbuf,int bufsize);

@@ -1,7 +1,7 @@
 #include "mc_routine.h"
 #include "mc_dispatch.h"
 //---------------------------------------------------------------------------
-static void HandleUserMsg(TMcPacket *packet){
+void mc_dispatchmsg(TMcPacket *packet){
 //to map user message to handler 
   BEGIN_MESSAGE_MAP_ONLINE
      MESSAGE_HANDLER(MSG_DSR_COMMJSON)  
@@ -67,10 +67,6 @@ static void HandleUserMsg(TMcPacket *packet){
   END_MESSAGE_MAP
 }
 //---------------------------------------------------------------------------
-void mc_fuckMsg(void){
-  mc_handler(HandleUserMsg);
-}
-
 /*todolist
 ##################todo_first_level:
 ◆hsk_init -增加包检验回调函数;hsk_readPacket取代hsk_readData;

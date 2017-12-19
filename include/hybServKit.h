@@ -14,7 +14,8 @@ typedef struct{void *owner;TNetAddr addr;char data[0];}THskPacket;
 #define BINODE_ISOLATE(node,p_prev,p_next) {(node)->p_next=node;(node)->p_prev=node;}
 #define BINODE_REMOVE(node,p_prev,p_next) {(node)->p_next->p_prev=(node)->p_prev;(node)->p_prev->p_next=(node)->p_next;}
 //---------------------------------------------------------------------------
-int    hsk_init(int localUdpPort,int localTcpPort,int inQueueSize,int maxTcpPacketSize);
+int    hsk_init(int localTcpPort,int localUdpPort,int maxUdpDatagramSize,int inQueueSize);
+int    hsk_append_udp(int udpPortArray[],int udpCount,int inQueueSize);
 int    hsk_getUdpSocket(void);
 int    hsk_getTcpSocket(void);
 int    hsk_readData(void *recvBuf, int bufSize,TNetAddr *peerAddr);
@@ -27,7 +28,7 @@ char  *str_xmlSeek(char *xmlbuf,char *key,int *len);
 int    str_lenOfUTF8(char *str);
 int    str_fromTime(char *strTime,char *format,time_t timestamp);
 time_t str_toTime(char *strTime,char *format);
-int    str_dataToHex(void *srcData,int dataLen,char *hexBuf,int bufSize,char splitter);
+int    str_bytesToHex(void *srcData,int dataLen,char *hexBuf,int bufSize,char splitter);
 char  *str_keySeek(char *keyList,char *key,char splitter);
 int    tm_getLocalHour(time_t timestamp);//get local hour from unix timestamp;
 //---------------------------------------------------------------------------

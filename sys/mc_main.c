@@ -8,7 +8,7 @@ extern void upload_init(void);
 extern void mcufw_init(void);
 extern void routine_init(void);
 extern void dblog_init(void);
-extern mc_fuckMsg(void);
+extern void mc_schedule(void);
 //---------------------------------------------------------------------------
 int main(int argc, char* argv[]){
   //printf("SOCKET_MAX_LISTEN=%d\r\n",SOCKET_MAX_LISTEN);
@@ -30,7 +30,7 @@ int main(int argc, char* argv[]){
 
   routine_init();
 
-  mc_fuckMsg();
+  mc_schedule();
 
   pthread_exit(0);//通过pthread_exit实现退出当前线程（主线程）而不结束进程。
   return 0;
