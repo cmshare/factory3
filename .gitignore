@@ -3,6 +3,7 @@
 /uploadfiles
 /tags
 /include/mc_config.h
+/doc
 *.o
 *.a
 *.bak
