@@ -85,7 +85,8 @@ static TMcPacket *NET_RecvPacket(void *dgramBuffer,int bufferSize){
    return NULL;  	
 }
 //---------------------------------------------------------------------------
-static void *mc_dispatch_proc(void *handler){
+static void *mc_dispatch_proc(void *param){
+  extern void mc_dispatchmsg(TMcPacket *);
   int bufferSize=sizeof(TMcPacket)+MAXLEN_IP_FRAGMENT;
   void *pbuf=malloc(bufferSize);
   while(1)//process user request packet  
@@ -94,20 +95,35 @@ static void *mc_dispatch_proc(void *handler){
     {  if(packet->terminal)
     	{ DBLog_AppendMsg(&packet->msg,packet->terminal,FALSE);
     	}
-  	((void (*)(TMcPacket *))handler)(packet);
+        mc_dispatchmsg(packet);
+  	//((void (*)(TMcPacket *))param)(packet);
   	hsk_releasePacket((THskPacket *)packet);
     }	
   }
   return NULL;
 }
 //---------------------------------------------------------------------------
+static void *uwb_location_proc(void *param){
+  extern void udp_process_packet(void *,int,TNetAddr *);
+  unsigned char recvBuf[MAXLEN_UDP_DATAGRAM];
+  while(1){  
+    TNetAddr peerAddr;
+    int dataLen=hsk_readDatagram(recvBuf,sizeof(recvBuf),&peerAddr);
+    udp_process_packet(recvBuf,dataLen,&peerAddr);
+  }
+  return NULL;
+}
+//---------------------------------------------------------------------------
+// #define      16 
 void mc_schedule(void){
-  extern void mc_dispatchmsg(TMcPacket *);
   int i;
+  pthread_t _thread=0;
   for(i=0;i<NUM_DISPATCH_THREAD;i++){
-    pthread_t _thread=0;
-    pthread_create(&_thread, NULL,mc_dispatch_proc,(void *)mc_dispatchmsg);
+    pthread_create(&_thread, NULL,mc_dispatch_proc,NULL);
     //printf("Create dispatch-thread-%02d...%s!\r\n",i+1,(_thread)?"OK":"failed");	
+  }
+  for(i=0;i<NUM_UWB_PROCESS_THREAD;i++){
+    pthread_create(&_thread, NULL,uwb_location_proc,NULL);
   }
   puts("UWB daemon service Ver "MEOW_SERVICE_VERSION" @"WEB_SERVER_HOST",running...");
 }

@@ -18,8 +18,9 @@ int    hsk_init(int localTcpPort,int localUdpPort,int maxUdpDatagramSize,int inQ
 int    hsk_append_udp(int udpPortArray[],int udpCount,int inQueueSize);
 int    hsk_getUdpSocket(void);
 int    hsk_getTcpSocket(void);
-int    hsk_readData(void *recvBuf, int bufSize,TNetAddr *peerAddr);
 void   hsk_sendData(void *data,int datalen,TNetAddr *peerAddr);
+int    hsk_readData(void *recvBuf, int bufSize,TNetAddr *peerAddr);
+int    hsk_readDatagram(void *recvBuf, int bufSize,TNetAddr *peerAddr);
 void   hsk_releasePacket(THskPacket *packet);
 THskPacket *hsk_assemble(TNetAddr *peerAddr,void *sliceData,int sliceLen,int predictPacketSize);
 int    hsk_httpPost(char *URL,void *formData,int formSize,char *responseBuffer,int buffersize,int sTimeout);
