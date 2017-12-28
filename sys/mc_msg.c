@@ -26,14 +26,12 @@ extern void AES128_decrypt(void *data,int dataLen);
 	sem_post(&msg_alloc_lock);\
 }
 //---------------------------------------------------------------------------
-TMcMsg *msg_alloc(U32 msgID,U32 bodyLen)
-{	static U32 msg_synid=0;
-	TMcMsg *msg;
-	MSG_ALLOC_MEM(msg,sizeof(TMcMsg)+bodyLen+1);
-	msg->msgid=msgID;
+TMcMsg *msg_alloc(U32 msgID,U32 bodyLen){
+  TMcMsg *msg;
+  MSG_ALLOC_MEM(msg,sizeof(TMcMsg)+bodyLen+1);
+  msg->msgid=msgID;
   msg->bodylen=bodyLen;
   msg->encrypt=ENCRYPTION_NONE;
-  msg->synid=++msg_synid;//流水号：按发送顺序从 1 开始循环累加
   msg->sessionid=SERVER_DYNAMIC_SESSION(msg); //用于验证是否是服务器发出的指令
   return msg;
 }
@@ -88,10 +86,10 @@ BOOL msg_decrypt(TMcMsg *msg)
 }
 //---------------------------------------------------------------------------
 BOOL msg_response_dispatch(TMcPacket *packet,void msgHandle(TMcPacket *,void *)){
-    TMSG_ACK_GENERAL *ack=(TMSG_ACK_GENERAL *)packet->msg.body;
+    //TMSG_ACK_GENERAL *ack=(TMSG_ACK_GENERAL *)packet->msg.body;
     BOOL ret=FALSE;
-    TSuspendRequest *susRequest=(TSuspendRequest *)dtmr_find(suspendRequestLinks,ack->ack_synid,0,NULL,DTMR_FOREVER);
-    if(susRequest){
+    TSuspendRequest *susRequest=(TSuspendRequest *)dtmr_find(suspendRequestLinks,packet->msg.synid,0,NULL,DTMR_FOREVER);
+    if(susRequest && (packet->msg.msgid==(susRequest->reqPacket.msg.msgid|MSG_ACK_MASK)||packet->msg.msgid==MSG_ACK_MASK)){
       U32 _ackSession=(susRequest->reqPacket.terminal)?susRequest->reqPacket.terminal->session:SERVER_DYNAMIC_SESSION(&packet->msg);
       if(_ackSession==packet->msg.sessionid /*&& susRequest->ack_msg==packet->msg.msgid*/){
          // RESPONSE_APPENDIX(packet)=susRequest->extraData;
@@ -119,51 +117,50 @@ static void msg_request_timeout(HAND ttasks,void *taskCode,U32 *taskID,char *tas
   }	
 }  
 //---------------------------------------------------------------------------
-void msg_sendto(TMcMsg *msg,TNetAddr *peerAddr,TNetAddr *forwardAddr)
-{  int  msgLen=MC_MSG_SIZE(msg);
-	 //消息体加密
-	 if(msg->bodylen>0 && msg->encrypt>ENCRYPTION_NONE)
-   {  //为消息密文重新分配地址空间，以保留原始消息明文数据
-  	 TMcMsg *encryptMsg=msg_encrypt(msg);
-  	 if(encryptMsg)
-  	 { msg=encryptMsg;
-  	 	 msgLen=MC_MSG_SIZE(msg);
-  	 }	
-  	 else msg->encrypt=ENCRYPTION_NONE;	
+void msg_sendto(TMcMsg *msg,TNetAddr *peerAddr){
+  int  msgLen=MC_MSG_SIZE(msg);
+  //消息体加密
+   if(msg->bodylen>0 && msg->encrypt>ENCRYPTION_NONE){
+      //为消息密文重新分配地址空间，以保留原始消息明文数据
+      TMcMsg *encryptMsg=msg_encrypt(msg);
+      if(encryptMsg){
+        msg=encryptMsg;
+        msgLen=MC_MSG_SIZE(msg);
+      }	
+      else msg->encrypt=ENCRYPTION_NONE;	
    }
-  
    //更新校验位 
-	 msg_UpdateChecksum(msg,msgLen); 
-
-	 //发送消息包
-	 hsk_sendData(msg,msgLen,peerAddr);
-	 if(forwardAddr)hsk_sendData(msg,(msgLen<MAXLEN_UDP_DATAGRAM)?msgLen:MAXLEN_UDP_DATAGRAM,forwardAddr); //forwardAddr必定是UDP地址
+   msg_UpdateChecksum(msg,msgLen); 
+   //发送消息包
+   hsk_sendData(msg,msgLen,peerAddr);
 	 	
- 	 #ifdef DEBUG_MODE
-     Log_AppendData(msg,msgLen,peerAddr,TRUE);
+   #ifdef DEBUG_MODE
+   Log_AppendData(msg,msgLen,peerAddr,TRUE);
    #endif
 }
 
-void msg_send(TMcMsg *msg,TMcPacket *packet,TTerminal *terminal)
-{  TNetAddr *peerAddr,*spyAddr;
-	 if(packet)
-	 {  peerAddr=&packet->peerAddr;
-	 	  spyAddr=(packet->terminal && packet->terminal->spyAddr.ip)?(&packet->terminal->spyAddr):NULL;
-	 	  msg->encrypt=packet->msg.encrypt;
-	 	  DBLog_AppendMsg(msg,packet->terminal,TRUE);
-	 }
-	 else if(terminal)
-	 { peerAddr=&terminal->loginAddr;
-	 	 spyAddr=(terminal->spyAddr.ip)?(&terminal->spyAddr):NULL;
-	 	 msg->encrypt=terminal->encrypt;
-	 	 DBLog_AppendMsg(msg,terminal,TRUE);
-	 }
-	 else
-	 { peerAddr=NULL;
-	 	 spyAddr=NULL;
-	 	 msg->encrypt=ENCRYPTION_NONE;
-	 }
-	 msg_sendto(msg,peerAddr,spyAddr);
+void msg_send(TMcMsg *msg,TMcPacket *packet,TTerminal *terminal){
+  static U32 msg_synid=0;
+  TNetAddr *peerAddr;
+  if(packet){
+    peerAddr=&packet->peerAddr;
+    msg->encrypt=packet->msg.encrypt;
+    if((msg->msgid&MSG_ACK_MASK)) msg->synid=packet->msg.synid;
+    else msg->synid=++msg_synid;
+    DBLog_AppendMsg(msg,packet->terminal,TRUE);
+  }
+  else if(terminal){
+    peerAddr=&terminal->loginAddr;
+    msg->encrypt=terminal->encrypt;
+    msg->synid=++msg_synid;
+    DBLog_AppendMsg(msg,terminal,TRUE);
+  }
+  else{
+    peerAddr=NULL;
+    msg->encrypt=ENCRYPTION_NONE;
+    msg->synid=++msg_synid;
+  }
+  msg_sendto(msg,peerAddr);
 }
 //---------------------------------------------------------------------------
 void msg_request(TMcMsg *reqMsg,TTerminal *terminal,/*U32 ackMsgID,*/void *extraData,U32 extraSize)
@@ -196,24 +193,18 @@ void msg_request(TMcMsg *reqMsg,TTerminal *terminal,/*U32 ackMsgID,*/void *extra
 }
 
 //---------------------------------------------------------------------------
-void msg_ack(U32 msgid,U8 error,TMcPacket *packet){
-   if(msgid==MSG_STA_GENERAL){
-    TMcMsg *msg=msg_alloc(MSG_STA_GENERAL,sizeof(TMSG_STA_GENERAL));
-    TMSG_STA_GENERAL *ackBody=(TMSG_STA_GENERAL *)msg->body;
-    ackBody->error=error;
-    ackBody->ack_synid=packet->msg.synid;
-    ackBody->ack_msgid=packet->msg.msgid;
-    msg_send(msg,packet,NULL);
-  }
-  else{
-    TMcMsg *msg=msg_alloc(msgid,sizeof(TMSG_ACK_GENERAL));
-    TMSG_ACK_GENERAL *ack=(TMSG_ACK_GENERAL *)msg->body;
-    ack->error=error;
-    ack->ack_synid=packet->msg.synid;
-    msg_send(msg,packet,NULL);
-  }	
+void msg_ack(TMcPacket *srcPacket,void *msgData,int dataLen){
+    TMcMsg *msg=msg_alloc(srcPacket->msg.msgid|MSG_ACK_MASK,dataLen);
+    if(dataLen==1)*(U8*)msg->body=*(U8 *)msgData;
+    else memcpy(msg->body,msgData,dataLen);
+    msg_send(msg,srcPacket,NULL);
 }
 
+void msg_ack_general(TMcPacket *srcPacket,U8 errCode){
+    TMcMsg *msg=msg_alloc(MSG_ACK_MASK,sizeof(U8));
+    *(U8 *)msg->body=errCode;
+    msg_send(msg,srcPacket,NULL);
+}
 //---------------------------------------------------------------------------
 void msg_init(void)
 { sem_init(&msg_alloc_lock, 0, 1);

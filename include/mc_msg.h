@@ -11,28 +11,11 @@
 //DSR表示Request of Device to Server
 //UDA表示Acknowledge of User to Device
 
-#define MSG_STA_GENERAL           0x80000000    //服务器通用应答
-#define MSG_TSR_SPYLOGIN          0x0000800A    //监控客户端登录请求
-#define MSG_STR_SPYNOTIFY         0x0000800B    //服务器对监控端的消息通知
+#define MSG_ACK_MASK              0x80000000    //掩码：用于应答指令的最高位置1
+#define MSG_STA_GENERAL           MSG_ACK_MASK    //服务器通用应答
 
 #define MSG_BSR_NOTIFY            0x00008001    //WEB管理平台(浏览器)通知服务器后台服务
 
-#define MSG_SDR_COMMJSON          0x00000100    //终端JSON信息请求（应答按通用应答）
-
-#define MSG_DSR_COMMJSON          0x00000101    //终端JSON信息上报（应答按通用应答）
-
-#define MSG_SUR_NOTIFY_MSGBOX    0x00000001    //服务器事件通知请求
-#define MSG_USA_NOTIFY_MSGBOX    (MSG_SUR_NOTIFY_MSGBOX|MSG_STA_GENERAL) 
-
-#define MSG_USR_READ_OFFLINEMSG   0x00000004    //读取离线消息
-#define MSG_SUA_READ_OFFLINEMSG   (MSG_USR_READ_OFFLINEMSG|MSG_STA_GENERAL) 
-
-#define MSG_USR_DELETE_OFFLINEMSG 0x00000005    //删除离线消息
-#define MSG_SUA_DELETE_OFFLINEMSG (MSG_USR_DELETE_OFFLINEMSG|MSG_STA_GENERAL) 
-
-#define MSG_DSR_LOGIN             0x00000014    //终端设备登录请求
-#define MSG_SDA_LOGIN             (MSG_DSR_LOGIN|MSG_STA_GENERAL)  //终端登录响应
-                                  
 #define MSG_USR_LOGIN             0x00000012    //手机用户登录请求
 #define MSG_SUA_LOGIN             (MSG_USR_LOGIN|MSG_STA_GENERAL)  //用户登录响应
 
@@ -52,6 +35,22 @@
 #define MSG_USR_REGIST            0x00000011   //手机注册账号请求
 #define MSG_SUA_REGIST            (MSG_USR_REGIST|MSG_STA_GENERAL)  //手机注册账号响应
 
+#define MSG_SDR_COMMJSON          0x00000100    //终端JSON信息请求（应答按通用应答）
+
+#define MSG_DSR_COMMJSON          0x00000101    //终端JSON信息上报（应答按通用应答）
+
+#define MSG_SUR_NOTIFY_MSGBOX    0x00000001    //服务器事件通知请求
+#define MSG_USA_NOTIFY_MSGBOX    (MSG_SUR_NOTIFY_MSGBOX|MSG_STA_GENERAL) 
+
+#define MSG_USR_READ_OFFLINEMSG   0x00000004    //读取离线消息
+#define MSG_SUA_READ_OFFLINEMSG   (MSG_USR_READ_OFFLINEMSG|MSG_STA_GENERAL) 
+
+#define MSG_USR_DELETE_OFFLINEMSG 0x00000005    //删除离线消息
+#define MSG_SUA_DELETE_OFFLINEMSG (MSG_USR_DELETE_OFFLINEMSG|MSG_STA_GENERAL) 
+
+#define MSG_DSR_LOGIN             0x00000014    //终端设备登录请求
+#define MSG_SDA_LOGIN             (MSG_DSR_LOGIN|MSG_STA_GENERAL)  //终端登录响应
+                                  
 #define MSG_DSR_APPLYFORUID       0x00000063   //设备申请UID请求
 #define MSG_SDA_APPLYFORUID       (MSG_DSR_APPLYFORUID|MSG_STA_GENERAL) 
 
@@ -218,8 +217,7 @@ typedef struct
 }TMSG_STA_GENERAL;
 
 typedef struct
-{ U32 ack_synid;
-  U8  error;
+{ U32 result;
 }TMSG_ACK_GENERAL;//,TMSG_SVA_LIVE_RET,TMSG_SUA_VERIFYCODE,TMSG_SUA_REGIST,TMSG_SUA_CHANGEPSW,TMSG_SDA_NOTIFY_STATE,TMSG_USA_NOTIFY_STATE,TMSG_SDA_NOTIFY_STRIKE,TMSG_USA_NOTIFY_STRIKE,TMSG_SUA_WAKEUP,TMSG_DSA_WAKEUP,TMSG_USA_LIVE,TMSG_VSA_LIVE,TMSG_SDA_SYNC,TMSG_USA_LIVE_RET,TMSG_SDA_UPLOAD_GPS,TMSG_SDA_UPLOAD_BEHAVIOR,TMSG_SDA_UPLOAD_IMSI/*,TMSG_SDA_UPLOAD_ICCID*/;
 
 typedef struct

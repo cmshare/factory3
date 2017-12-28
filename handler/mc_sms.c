@@ -155,6 +155,6 @@ void Handle_MSG_USR_VERIFYCODE(TMcPacket *packet){
    char *phone=req->phone;
    int usrgroup=(packet->terminal)?packet->terminal->group:req->groupid;
    int ret_error=(MobilePhone_check(phone))?do_send_vcode(&packet->peerAddr,phone,usrgroup):ERR_UNKNOWN;
-   msg_ack(MSG_SUA_VERIFYCODE,ret_error,packet);
+   msg_ack_general(packet,ret_error);
 }
 

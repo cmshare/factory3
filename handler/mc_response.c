@@ -29,8 +29,8 @@ void Response_MSG_DSA_QUERY_STATE(TMcPacket *response,void *extraData){
 
 void  Response_MSG_DSA_WAKEUP(TMcPacket *response,void *extraData)
 { TMcPacket *sus_packet=(TMcPacket *)extraData;
-  U8 ret_error=((TMSG_ACK_GENERAL *)response->msg.body)->error;
-  msg_ack(MSG_SUA_WAKEUP,ret_error,sus_packet);
+  U8 ret_error=((TMSG_ACK_GENERAL *)response->msg.body)->result;
+  msg_ack_general(sus_packet,ret_error);
   
  // printf("####respose wakeup =%d\r\n",ret_error);
 /* 终端设备响应成功只表示响应操作，不表示已经成功执行唤醒或者休眠。

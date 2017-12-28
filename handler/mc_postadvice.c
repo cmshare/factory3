@@ -52,5 +52,5 @@ void Handle_MSG_USR_POST_ADVICE(TMcPacket *packet)
       mysql_stmt_close(stmt);      
       db_lock(FALSE);
 	 }
-	 msg_ack(MSG_STA_GENERAL,ret_error,packet);
+	 msg_ack_general(packet,ret_error);
 }

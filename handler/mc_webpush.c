@@ -72,7 +72,7 @@ void Handle_MSG_BSR_NOTIFY(TMcPacket *packet)
      char *msgcontent=msgtitle+strlen(msgtitle)+1;
      char *param_end=msgcontent+strlen(msgcontent)+1;
      if((int)(param_end-req->param_data)==req->param_size){
-       msg_ack(MSG_STA_GENERAL,0,packet);//处理时间会比较久，先响应
+       msg_ack_general(packet,0);//处理时间会比较久，先响应
        ret_error=push_group_msg(usrgroup,devgroup,msgtype,msgcontent,msgtitle);
        return;
      }
@@ -160,5 +160,5 @@ void Handle_MSG_BSR_NOTIFY(TMcPacket *packet)
     }
   }  
   
-  msg_ack(MSG_STA_GENERAL,ret_error,packet);
+  msg_ack_general(packet,ret_error);
 }

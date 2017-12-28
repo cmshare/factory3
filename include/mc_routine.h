@@ -24,10 +24,11 @@ BOOL msg_decrypt(TMcMsg *msg);
 void msg_UpdateChecksum(void *data,int datalen);
 BOOL msg_ValidChecksum(void *data,int datalen);
 void msg_send(TMcMsg *msg,TMcPacket *packet,TTerminal *terminal);
-void msg_sendto(TMcMsg *msg,TNetAddr *peerAddr,TNetAddr *forwardAddr);
+void msg_sendto(TMcMsg *msg,TNetAddr *peerAddr);
 //void msg_request(TMcMsg *msg,TTerminal *terminal,U32 ackMsgID,TMcPacket *srcPacket,U32 msgBodyLenToStore);
 void msg_request(TMcMsg *msg,TTerminal *terminal,void *extraData,U32 extraSize);
-void msg_ack(U32 msgid,U8 error,TMcPacket *packet);
+void msg_ack(TMcPacket *srcPacket,void *msgData,int dataLen);
+void msg_ack_general(TMcPacket *srcPacket,U8 errCode);
 void push_device_msg(U32 deviceID,int msgType,char *msgContent);
 int push_group_msg(U32 usrgroup,U32 devgroup,int msgType,char *msgContent,char *msgTitle);
 //---------------------------------------------------------------------------

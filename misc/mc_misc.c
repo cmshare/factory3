@@ -44,7 +44,7 @@ int app_exepath(char *pathbuf,int bufsize)
 void Log_AppendData(void *data,int datalen,TNetAddr *peerAddr,BOOL bSendOrRecv){
   if(datalen>0){
     char tempbuf[512];
-    if(peerAddr)printf("%s %dBytes %s %s:%d",(bSendOrRecv)?"[SEND":"\r\n[RECV",datalen,(bSendOrRecv)?"to":"from",inet_ntoa(*((struct in_addr *)&peerAddr->ip)),peerAddr->port);
+    if(peerAddr)printf("%s %dBytes %s %s:%d ##",(bSendOrRecv)?"[SEND":"\r\n[RECV",datalen,(bSendOrRecv)?"to":"from",inet_ntoa(*((struct in_addr *)&peerAddr->ip)),peerAddr->port);
     else if(bSendOrRecv) printf("[SEND to self]");
     datalen=str_bytesToHex(data,(datalen>512/3)?512/3:datalen,tempbuf,512,' ');
     tempbuf[datalen]='\0';

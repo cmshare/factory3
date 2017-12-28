@@ -57,10 +57,6 @@ void Handle_MSG_DSR_LOGIN(TMcPacket *packet)
     strncpy(terminal->name,content->name,SIZE_SN_DEVICE+1);
     error_code=0;
     db_queryf("update `%s` set session=%u,ip=%u,port=%u,logintime=%u where id=%u",(box_login)?"mc_boxes":"mc_devices",sessionid,packet->peerAddr.ip,packet->peerAddr.port,loginTime,deviceID);
-    if(terminal->spyAddr.ip)
-    { extern void spy_forwardLoginRequest(TMcMsg *,TNetAddr *);
-      spy_forwardLoginRequest(&packet->msg,&terminal->spyAddr); 
-    } 
   }
   
   packet->terminal=terminal;
@@ -165,8 +161,6 @@ void Handle_MSG_USR_LOGIN(TMcPacket *packet)
     if(!terminal)
     { terminal=(TTerminal *)dtmr_add(terminalLinks,sessionid,0,0,NULL,sizeof(TTermUser),HEARTBEAT_OVERTIME_S);
       memset(terminal,0,sizeof(TTermUser));
-      if(terminalKickOff && terminalKickOff->spyAddr.ip) terminal->spyAddr=terminalKickOff->spyAddr;
-      else terminal->spyAddr.ip=0;
     }
     terminal->term_type=TT_USER;
     terminal->id=userid;
@@ -181,10 +175,6 @@ void Handle_MSG_USR_LOGIN(TMcPacket *packet)
     terminal->encrypt=packet->msg.encrypt;//消息体默认加密方式
     strncpy(terminal->name,username,SIZE_MOBILE_PHONE+1);
     db_queryf("update `mc_users` set session=%u,ip=%u,port=%u,logintime=unix_timestamp() where id=%u",sessionid,packet->peerAddr.ip,packet->peerAddr.port,userid);
-    if(terminal->spyAddr.ip)
-    { extern void spy_forwardLoginRequest(TMcMsg *,TNetAddr *);
-      spy_forwardLoginRequest(&packet->msg,&terminal->spyAddr); 
-    } 
   }
   packet->terminal=terminal;
   
@@ -205,8 +195,7 @@ void Handle_MSG_USR_LOGIN2(TMcPacket *packet)
 void Handle_MSG_USR_LOGOUT(TMcPacket *packet)
 { db_queryf("update `mc_users` set session=0,logouttime=unix_timestamp() where id=%u",packet->terminal->id);
   dtmr_remove(packet->terminal);
-  msg_ack(MSG_STA_GENERAL,0,packet);
-  if(packet->terminal->spyAddr.ip)spy_notify(SPY_TERMINAL_OFFLINE, &packet->terminal->spyAddr);
+  msg_ack_general(packet,0);
 }
 
 void Handle_MSG_USR_REGIST(TMcPacket *packet)
@@ -237,7 +226,7 @@ void Handle_MSG_USR_REGIST(TMcPacket *packet)
     else if(vcode_err==ERR_TIMEOUT)ret_error=3; //验证码已经失效
   	else ret_error=2; //验证码错误
   }
-  msg_ack(MSG_SUA_REGIST,ret_error,packet);
+  msg_ack_general(packet,ret_error);
 }
 
 
@@ -304,11 +293,11 @@ void Handle_MSG_DSR_SYNC(TMcPacket *packet)
     db_queryf("update `mc_devices` set ssid='%s' where id=%u",ssid,packet->terminal->id);
     ret_error=0;
   }
-  msg_ack(MSG_SDA_SYNC,ret_error,packet);
+  msg_ack_general(packet,ret_error);
 }
 
 void Handle_MSG_TSR_HEARTBEAT(TMcPacket *packet)
-{ msg_ack(MSG_STA_GENERAL,0,packet);
+{ msg_ack_general(packet,0);
 }
 
 void Handle_MSG_USR_GETUSERHEAD(TMcPacket *packet)
@@ -340,7 +329,7 @@ void Handle_MSG_USR_CHANGEHEAD(TMcPacket *packet)
 { extern BOOL Userlogo_Save(U32 userid,void *data,int datalen);
   TMSG_USR_CHANGEHEAD *req=(TMSG_USR_CHANGEHEAD *)packet->msg.body;
   U8 ret_error=(Userlogo_Save(packet->terminal->id,req->data,req->datalen))?0:1;
-  msg_ack(MSG_STA_GENERAL,ret_error,packet);
+  msg_ack_general(packet,ret_error);
   //hsk_closeTcpClient(&packet->peerAddr);
 }
 
@@ -371,7 +360,7 @@ void Handle_MSG_USR_GETUSERINFO(TMcPacket *packet)
 void Handle_MSG_USR_CHANGENICK(TMcPacket *packet)
 { TMSG_USR_CHANGENICK *req=(TMSG_USR_CHANGENICK *)packet->msg.body;
   db_queryf("update `mc_users` set nickname='%s' where id=%u",db_filterSQL(req->nick),packet->terminal->id);
-  msg_ack(MSG_STA_GENERAL,0,packet);
+  msg_ack_general(packet,0);
 }
 
 void Handle_MSG_USR_CHANGESEX(TMcPacket *packet)
@@ -385,7 +374,7 @@ void Handle_MSG_USR_CHANGESEX(TMcPacket *packet)
     packet->terminal->sex_type=sex_type;
     ret_error=0; 
   } 
-  msg_ack(MSG_STA_GENERAL,ret_error,packet);  
+  msg_ack_general(packet,ret_error);  
 }
 
 void Handle_MSG_USR_ACCEPTMSGPUSH(TMcPacket *packet)
@@ -399,7 +388,7 @@ void Handle_MSG_USR_ACCEPTMSGPUSH(TMcPacket *packet)
     packet->terminal->msg_push_acceptable=msg_push_acceptable;
     ret_error=0;
   }
-  msg_ack(MSG_STA_GENERAL,ret_error,packet);  
+  msg_ack_general(packet,ret_error);  
 }
 
 
@@ -433,7 +422,7 @@ void Handle_MSG_USR_CHANGEPSW(TMcPacket *packet)
          }  	
     }
   }
-  msg_ack(MSG_SUA_CHANGEPSW,ret_error,packet);  
+  msg_ack_general(packet,ret_error);  
 }
 
 void Handle_MSG_USR_BIND(TMcPacket *packet)
@@ -607,7 +596,7 @@ void Handle_MSG_DSR_NOTIFY_STATE(TMcPacket *packet){
   extern void device_stateNotifyUser(TTerminal *terminal,U32 devID);
   U8 new_state=((TMSG_DSR_NOTIFY_STATE *)packet->msg.body)->value;
   TTerminal *terminal=packet->terminal;
-  msg_ack(MSG_SDA_NOTIFY_STATE,0,packet);
+  msg_ack_general(packet,0);
  // if(strcmp(terminal->name,"CAM-019522FF18000098")==0)printf("######[%s] notify state:%d\r\n",terminal->name,new_state);
   if(terminal->term_type==TT_BOX){
     MYSQL_RES *res=db_queryf("select id,session,state from `mc_devices` where boxid=%u",terminal->id);
@@ -702,7 +691,7 @@ void Handle_MSG_USR_READ_OFFLINEMSG(TMcPacket *packet)
 void Handle_MSG_USR_DELETE_OFFLINEMSG(TMcPacket *packet)
 { //将mc_msgbox表的category字段取负表示删除消息
   db_queryf("update `mc_msgbox` set category=-category where recipient=%d and category>0",packet->terminal->id);
-  msg_ack(MSG_SUA_DELETE_OFFLINEMSG,0,packet);
+  msg_ack_general(packet,0);
 }
 
 //摄像头抓拍完成通知
@@ -710,7 +699,7 @@ void Handle_MSG_DSR_NOTIFY_SNAPSHOT(TMcPacket *packet){
   char strWarning[256]="\0";
   BOOL gotSnapshot=FALSE;
   TMSG_DSR_NOTIFY_SNAPSHOT *req=(TMSG_DSR_NOTIFY_SNAPSHOT *)packet->msg.body;
-  msg_ack(MSG_STA_GENERAL,0,packet);
+  msg_ack_general(packet,0);
   MYSQL_RES *res=db_queryf("select ssid,groupid from `mc_devices` where id=%d",packet->terminal->id);
   if(res){
     MYSQL_ROW row = mysql_fetch_row(res);
@@ -737,7 +726,7 @@ void Handle_MSG_DSR_NOTIFY_SNAPSHOT(TMcPacket *packet){
 
 //单片机震动通知
 void Handle_MSG_DSR_NOTIFY_STRIKE(TMcPacket *packet){
-  msg_ack(MSG_SDA_NOTIFY_STRIKE,0,packet);
+  msg_ack_general(packet,0);
   char strWarning[256]="\0";
   char *segment=(packet->terminal->term_type==TT_BOX)?"boxid":"id";
   MYSQL_RES *res=db_queryf("select id,ssid,groupid from `mc_devices` where %s=%u",segment,packet->terminal->id);
@@ -759,7 +748,7 @@ void Handle_MSG_DSR_NOTIFY_STRIKE(TMcPacket *packet){
 void Handle_MSG_DSR_NOTIFY_LOWPOWER(TMcPacket *packet){
   char strWarning[200];
   char *segment=(packet->terminal->term_type==TT_BOX)?"boxid":"id";
-  msg_ack(MSG_STA_GENERAL,0,packet);
+  msg_ack_general(packet,0);
   MYSQL_RES *res=db_queryf("select id,ssid,groupid from `mc_devices` where %s=%u",segment,packet->terminal->id);
   if(res){
     MYSQL_ROW row;
@@ -809,7 +798,7 @@ void Handle_MSG_USR_WAKEUP(TMcPacket *packet)
   }
   else
   { label_fail:
-    msg_ack(MSG_SUA_WAKEUP,1,packet);
+    msg_ack_general(packet,1);
   }
 }
 
@@ -821,7 +810,7 @@ void Handle_MSG_DSR_UPLOAD_GPS(TMcPacket *packet)
    if(req->count>0 && packet->msg.bodylen>=gps_packet_len)
    { ret_error=0; 
    }  
-   msg_ack(MSG_SDA_UPLOAD_GPS,ret_error,packet);
+   msg_ack_general(packet,ret_error);
    if(ret_error==0)
    {   db_lock(TRUE);
        MYSQL *conn=db_conn();
@@ -883,7 +872,7 @@ void Handle_MSG_USR_QUERY_GPS(TMcPacket *packet)
 
 void Handle_MSG_DSR_UPLOAD_BEHAVIOR(TMcPacket *packet)
 { U8 ret_error=0;
-  msg_ack(MSG_SDA_UPLOAD_BEHAVIOR,ret_error,packet);
+  msg_ack_general(packet,ret_error);
   
   //todo: 驾驶行为存储到数据库
 }
@@ -898,7 +887,7 @@ void Handle_MSG_DSR_UPLOAD_IMSI(TMcPacket *packet)
     }
     ret_error=0;
   }
-  msg_ack(MSG_SDA_UPLOAD_IMSI,ret_error,packet);
+  msg_ack_general(packet,ret_error);
 }
 
 void Handle_MSG_USR_QUERY_ACCESSNO(TMcPacket *packet)
@@ -921,63 +910,6 @@ void Handle_MSG_USR_QUERY_ACCESSNO(TMcPacket *packet)
   ackBody->ack_synid=packet->msg.synid;
   msg_send(ackmsg,packet,NULL);
 }
-
-/*
-void Handle_MSG_DSR_UPLOAD_IMSI(TMcPacket *packet)
-{ TMSG_DSR_UPLOAD_IMSI *req=(TMSG_DSR_UPLOAD_IMSI *)packet->msg.body;
-  U8 ret_error=1;
-  BOOL need_update_accessno=FALSE;
-  req->imsi[SIZE_IMSI]='\0';
-  if(strlen(req->imsi)==SIZE_IMSI && db_checkSQL(req->imsi))
-  { MYSQL_RES *res=db_queryf("select imsi,accessno from `mc_devices` where id=%u",packet->terminal->id);
-    if(res)
-    { MYSQL_ROW row=mysql_fetch_row(res);
-      if(row)
-      { if(!row[0] || strcmp(row[0],req->imsi)!=0)
-        { db_queryf("update `mc_devices` set imsi='%s',accessno=null where id=%u",req->imsi,packet->terminal->id);
-          need_update_accessno=TRUE;
-        }
-        else if(!row[1] || !row[1][0])need_update_accessno=TRUE;
-        ret_error=0;
-      }
-      mysql_free_result(res);  
-    } 
-  }
-  msg_ack(MSG_SDA_UPLOAD_IMSI,ret_error,packet);
-  if(need_update_accessno)
-  {	MYSQL_RES *res=db_queryf("select accessno,simgroup from `mc_simcard` where imsi='%s'",req->imsi);
-    if(res)
-    { MYSQL_ROW row=mysql_fetch_row(res);
-    	if(row)
-    	{	db_queryf("update `mc_devices` set accessno='%s',simgroup=%s where id=%u",row[0],row[1],packet->terminal->id);
-    		need_update_accessno=FALSE;
-      }	
-      mysql_free_result(res);  
-    }	
-  }  
-}
-void Handle_MSG_USR_QUERY_ACCESSNO(TMcPacket *packet)
-{ TMSG_USR_QUERY_ACCESSNO *req=(TMSG_USR_QUERY_ACCESSNO *)packet->msg.body;
-  TMcMsg *ackmsg=msg_alloc(MSG_SUA_QUERY_ACCESSNO,sizeof(TMSG_SUA_QUERY_ACCESSNO));
-  TMSG_SUA_QUERY_ACCESSNO *ackBody=(TMSG_SUA_QUERY_ACCESSNO *)ackmsg->body;
-  ackBody->error=-1;
-  ackBody->accessno[0]='\0';
-  if(req->device_sn[0] && db_checkSQL(req->device_sn))
-  { MYSQL_RES *res=db_queryf("select accessno from `mc_devices` where sn='%s'",req->device_sn);
-    if(res)
-    { MYSQL_ROW row=mysql_fetch_row(res);
-      if(row) 
-      { ackBody->error=0;
-        if(row[0]&&row[0][0])strncpy(ackBody->accessno,row[0],SIZE_ACCESSNO+1);
-      }else ackBody->error=1;
-      mysql_free_result(res);  
-    }
-  }
-  ackBody->ack_synid=packet->msg.synid;
-  msg_send(ackmsg,packet,NULL);
-}
-
-*/
 
 void Handle_MSG_USR_CONFIGS(TMcPacket *packet)
 {/////////////////////////////////////////////
@@ -1092,7 +1024,7 @@ void Handle_MSG_USR_QUERY_SN_FROM808(TMcPacket *packet)
 void Handle_MSG_DSR_COMMJSON(TMcPacket *packet)
 {  const int max_json_size=8192;
    T_VARDATA *req=(T_VARDATA *)packet->msg.body;
-   msg_ack(MSG_STA_GENERAL,0,packet);
+   msg_ack_general(packet,0);
    if(req->datalen>=0 && req->datalen<max_json_size)
    { char sql[max_json_size+50];
      char *segment=(packet->terminal->term_type==TT_BOX)?"boxid":"id";
@@ -1101,23 +1033,6 @@ void Handle_MSG_DSR_COMMJSON(TMcPacket *packet)
      db_query(sql);
   }
 }
-
-/*
-static CancelBoxBinding(int boxid){
-   MYSQL_RES *res=db_queryf("select id,session,state from mc_devices where boxid=%d",boxid);
-   if(res){
-     MYSQL_ROW row;
-     while((row=mysql_fetch_row(res))){
-         U32 dev_session=atoi(row[1]);
-                U32 dev_state=atoi(row[2]);
-                if(dev_session==0 && dev_state!=DEV_STATE_OFFLINE){
-                  U32 dev_id=atoi(row[0]);
-                }
-              }
-              mysql_free_result(res);
-            }
-}
-*/
 
 void Handle_MSG_DSR_UPDATE_BOXSN(TMcPacket *packet)
 { TMSG_DSR_UPDATE_BOXSN *req=(TMSG_DSR_UPDATE_BOXSN *)packet->msg.body;
@@ -1142,6 +1057,6 @@ void Handle_MSG_DSR_UPDATE_BOXSN(TMcPacket *packet)
       mysql_free_result(res);  
     } 
   }
-  msg_ack(MSG_STA_GENERAL,ret_error,packet);
+  msg_ack_general(packet,ret_error);
 }
 

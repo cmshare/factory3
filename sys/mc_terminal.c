@@ -42,7 +42,6 @@ void staticMap_generate(TTerminal *terminal){
 //---------------------------------------------------------------------------
 //终端设备或手机的心跳超时处理
 static void terminal_HbTimeout(HAND ttasks,void *taskCode,U32 *taskID,char *taskName,U32 *sUpdateLifeTime){
-  extern void spy_notify(U8 value, TNetAddr *spyAddr);
   TTerminal * terminal=(TTerminal *)taskCode;
  // Log_AppendText("\r\n[HeatBeatTimeout:%s]",terminal->name);
   switch(terminal->term_type){
@@ -62,7 +61,6 @@ static void terminal_HbTimeout(HAND ttasks,void *taskCode,U32 *taskID,char *task
               }
               mysql_free_result(res);
             }
-            if(terminal->spyAddr.ip)spy_notify(SPY_TERMINAL_OFFLINE, &terminal->spyAddr);
          }
          break;
     case TT_DEVICE:{//device
@@ -87,12 +85,10 @@ static void terminal_HbTimeout(HAND ttasks,void *taskCode,U32 *taskID,char *task
              device_stateNotifyUser(terminal,0);//通知绑定手机终端摄像头已离线
            }
            staticMap_generate(terminal);
-           if(terminal->spyAddr.ip)spy_notify(SPY_TERMINAL_OFFLINE, &terminal->spyAddr);
          }
          break;
     case TT_USER: //user
            db_queryf("update `mc_users` set session=0,logouttime=unix_timestamp() where id=%u",terminal->id);
-           if(terminal->spyAddr.ip)spy_notify(SPY_TERMINAL_OFFLINE, &terminal->spyAddr);
          break;
   }
   DBLog_AppendData("\xFF\xFF\xFF\xFF\x01",5,terminal); //超时登出日志
@@ -121,7 +117,6 @@ void terminal_init(void)
       if(node)
       { node->term_type=TT_USER;
         node->session=sessionid;
-        node->spyAddr.ip=0;
         node->loginAddr.socket=local_UdpSocket;
         node->live_user=0;//直播路径
         node->live_state=STAT_LIVE_CLOSE; //直播状态
@@ -147,7 +142,6 @@ void terminal_init(void)
       if(node)
       { node->term_type=TT_DEVICE;
         node->session=sessionid; 
-        node->spyAddr.ip=0;
         node->loginAddr.socket=local_UdpSocket;
         node->live_state=STAT_LIVE_CLOSE; //直播状态
         node->live_user=0;//直播路径
@@ -173,7 +167,6 @@ void terminal_init(void)
       if(node)
       { node->term_type=TT_BOX;
         node->session=sessionid; 
-        node->spyAddr.ip=0;
         node->loginAddr.socket=local_UdpSocket;
         node->id=atoi(row[0]);//field["id"]
         strncpy(node->name,row[1],SIZE_SN_BOX+1);//field["sn"]
