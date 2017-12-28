@@ -212,7 +212,7 @@ typedef struct
 }TMSG_USR_LOGIN2;
 
 typedef struct
-{ U32 ack_synid,ack_msgid;
+{ U32 ack_msgid;
   U8  error;
 }TMSG_STA_GENERAL;
 

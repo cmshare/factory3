@@ -201,8 +201,10 @@ void msg_ack(TMcPacket *srcPacket,void *msgData,int dataLen){
 }
 
 void msg_ack_general(TMcPacket *srcPacket,U8 errCode){
-    TMcMsg *msg=msg_alloc(MSG_ACK_MASK,sizeof(U8));
-    *(U8 *)msg->body=errCode;
+    TMcMsg *msg=msg_alloc(MSG_STA_GENERAL,sizeof(TMSG_STA_GENERAL));
+    TMSG_STA_GENERAL *ackBody=(TMSG_STA_GENERAL *)msg->body;
+    ackBody->ack_msgid=srcPacket->msg.msgid;
+    ackBody->error=errCode;
     msg_send(msg,srcPacket,NULL);
 }
 //---------------------------------------------------------------------------
