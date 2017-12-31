@@ -87,14 +87,4 @@ U32 Mcufw_Load(U32 groupid,void *dataBuffer,int bufszie)
 }
 #endif
 
-BOOL GPSdata_Save(U32 terminalID,TMcTime *mcTime,void *data,int datalen)
-{ char save_filepath[128];
-	sprintf(save_filepath,"%s/"GPSDATA_DIRECTORY_NAME"/%u-%d%02d%02d%02d%02d%02d.log",g_uploads_directory,terminalID,mcTime->year,mcTime->month,mcTime->day,mcTime->hour,mcTime->minute,mcTime->second);
-	FILE *f=fopen(save_filepath,"wb");
-	if(f)
-	{ fwrite(data,1,datalen,f);
-		fclose(f);
-		return TRUE;
-	}
-	return FALSE;
-}
+

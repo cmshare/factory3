@@ -11,11 +11,29 @@
 //DSR表示Request of Device to Server
 //UDA表示Acknowledge of User to Device
 
-#define MSG_ACK_MASK              0x80000000    //掩码：用于应答指令的最高位置1
-#define MSG_STA_GENERAL           MSG_ACK_MASK    //服务器通用应答
+#define MSG_ACK_MASK              0x80000000    //服务器通用应答
+#define MSG_STA_GENERAL           MSG_ACK_MASK     //服务器通用应答
+#define MSG_TSR_SPYLOGIN          0x0000800A    //监控客户端登录请求
+#define MSG_STR_SPYNOTIFY         0x0000800B    //服务器对监控端的消息通知
 
 #define MSG_BSR_NOTIFY            0x00008001    //WEB管理平台(浏览器)通知服务器后台服务
 
+#define MSG_SDR_COMMJSON          0x00000100    //终端JSON信息请求（应答按通用应答）
+
+#define MSG_DSR_COMMJSON          0x00000101    //终端JSON信息上报（应答按通用应答）
+
+#define MSG_SUR_NOTIFY_MSGBOX    0x00000001    //服务器事件通知请求
+#define MSG_USA_NOTIFY_MSGBOX    (MSG_SUR_NOTIFY_MSGBOX|MSG_STA_GENERAL) 
+
+#define MSG_USR_READ_OFFLINEMSG   0x00000004    //读取离线消息
+#define MSG_SUA_READ_OFFLINEMSG   (MSG_USR_READ_OFFLINEMSG|MSG_STA_GENERAL) 
+
+#define MSG_USR_DELETE_OFFLINEMSG 0x00000005    //删除离线消息
+#define MSG_SUA_DELETE_OFFLINEMSG (MSG_USR_DELETE_OFFLINEMSG|MSG_STA_GENERAL) 
+
+#define MSG_DSR_LOGIN             0x00000014    //终端设备登录请求
+#define MSG_SDA_LOGIN             (MSG_DSR_LOGIN|MSG_STA_GENERAL)  //终端登录响应
+                                  
 #define MSG_USR_LOGIN             0x00000012    //手机用户登录请求
 #define MSG_SUA_LOGIN             (MSG_USR_LOGIN|MSG_STA_GENERAL)  //用户登录响应
 
@@ -35,22 +53,6 @@
 #define MSG_USR_REGIST            0x00000011   //手机注册账号请求
 #define MSG_SUA_REGIST            (MSG_USR_REGIST|MSG_STA_GENERAL)  //手机注册账号响应
 
-#define MSG_SDR_COMMJSON          0x00000100    //终端JSON信息请求（应答按通用应答）
-
-#define MSG_DSR_COMMJSON          0x00000101    //终端JSON信息上报（应答按通用应答）
-
-#define MSG_SUR_NOTIFY_MSGBOX    0x00000001    //服务器事件通知请求
-#define MSG_USA_NOTIFY_MSGBOX    (MSG_SUR_NOTIFY_MSGBOX|MSG_STA_GENERAL) 
-
-#define MSG_USR_READ_OFFLINEMSG   0x00000004    //读取离线消息
-#define MSG_SUA_READ_OFFLINEMSG   (MSG_USR_READ_OFFLINEMSG|MSG_STA_GENERAL) 
-
-#define MSG_USR_DELETE_OFFLINEMSG 0x00000005    //删除离线消息
-#define MSG_SUA_DELETE_OFFLINEMSG (MSG_USR_DELETE_OFFLINEMSG|MSG_STA_GENERAL) 
-
-#define MSG_DSR_LOGIN             0x00000014    //终端设备登录请求
-#define MSG_SDA_LOGIN             (MSG_DSR_LOGIN|MSG_STA_GENERAL)  //终端登录响应
-                                  
 #define MSG_DSR_APPLYFORUID       0x00000063   //设备申请UID请求
 #define MSG_SDA_APPLYFORUID       (MSG_DSR_APPLYFORUID|MSG_STA_GENERAL) 
 
@@ -217,7 +219,7 @@ typedef struct
 }TMSG_STA_GENERAL;
 
 typedef struct
-{ U32 result;
+{ U8  result;
 }TMSG_ACK_GENERAL;//,TMSG_SVA_LIVE_RET,TMSG_SUA_VERIFYCODE,TMSG_SUA_REGIST,TMSG_SUA_CHANGEPSW,TMSG_SDA_NOTIFY_STATE,TMSG_USA_NOTIFY_STATE,TMSG_SDA_NOTIFY_STRIKE,TMSG_USA_NOTIFY_STRIKE,TMSG_SUA_WAKEUP,TMSG_DSA_WAKEUP,TMSG_USA_LIVE,TMSG_VSA_LIVE,TMSG_SDA_SYNC,TMSG_USA_LIVE_RET,TMSG_SDA_UPLOAD_GPS,TMSG_SDA_UPLOAD_BEHAVIOR,TMSG_SDA_UPLOAD_IMSI/*,TMSG_SDA_UPLOAD_ICCID*/;
 
 typedef struct
@@ -289,15 +291,6 @@ typedef struct
   T_VARDATA json;
 }TMSG_SUA_CONFIGS,TMSG_SUA_QUERY_VERSION,TMSG_SUA_GETBINDLIST;
 
-typedef struct
-{ U32 ack_synid;
-  U8  error;
-  char uid[MAXLEN_UID+1];
-}TMSG_SDA_APPLYFORUID;
-
-typedef struct
-{ char ssid[MAXLEN_SSID+1];
-}TMSG_DSR_SYNC;
 
 typedef struct
 { char nick[MAXLEN_NICKNAME+1];   //UTF-8编码
@@ -323,12 +316,6 @@ typedef struct
 }TMSG_USR_BIND,TMSG_USR_WAKEUP;
 
 typedef struct
-{ U32 ack_synid;
-  U8  error;
-  char uid[MAXLEN_UID+1];
-}TMSG_SUA_BIND;
-
-typedef struct
 { char sn[SIZE_SN_DEVICE+1];
 }TMSG_VSR_GETBINDUSER,TMSG_USR_QUERY_FLOWPACKAGE,TMSG_USR_QUERY_GPS,TMSG_USR_QUERY_STATE,TMSG_SDR_QUERY_STATE;
 
@@ -343,43 +330,6 @@ typedef struct
    U32 state_type;//0:工作状态;1:UID已经变更(state值无效)
    U8 state_value;
 }TMSG_SUR_NOTIFY_STATE;
-
-//typedef struct
-//{ char device_sn[SIZE_SN_DEVICE+1];
-//  U8  strike_level;   //碰撞级别（0：轻微 1：强烈 2：剧烈）
-//}TMSG_SUR_NOTIFY_STRIKE;
-
-typedef struct
-{ U8 action;   //操作(0：申请直播 1：拒绝直播，用于拒绝其它用户的申请观看直播)
-  char visitor_phone[SIZE_MOBILE_PHONE+1];//目标游客的手机用户名
-  char uid[MAXLEN_UID+1];//直播终端UID,20位tutk uid
-  U8 audio;//语音选项（0:带语音，1:不带语音）
-}TMSG_USR_LIVE;
-
-typedef struct
-{ U32 ack_synid;
-  U8  error;
-  char nickname[MAXLEN_NICKNAME+1];   //对看方昵称（UTF-8编码）
-}TMSG_SUA_LIVE,TMSG_SVA_LIVE;
-
-typedef struct
-{ U8 action;   //操作(0：申请直播 1：拒绝直播)
-  char usr_phone[SIZE_MOBILE_PHONE+1];//己方（邀请方）手机用户名
-  char usr_nick[MAXLEN_NICKNAME+1];   //己方昵称（UTF-8编码）
-  char uid[MAXLEN_UID+1];//直播终端UID,20位tutk uid
-  U8 audio;//语音选项（0:带语音，1:不带语音）
-}TMSG_SVR_LIVE;
-
-typedef struct
-{ char visitor_phone[SIZE_MOBILE_PHONE+1];//目标游客的手机用户名
-  U8  error;
-}TMSG_SUR_LIVE_RET;
-
-typedef struct
-{ char visitor_phone[SIZE_MOBILE_PHONE+1];
-  char visitor_nick[MAXLEN_NICKNAME+1];   //UTF-8编码
-}TMSG_SUR_LIVE;
-
 typedef struct
 { U32 local_version;
 }TMSG_DSR_MCU_CHECKVERSION;
@@ -412,23 +362,6 @@ typedef struct
   U16 azimuth;//水平面方位角,正北为0，顺时针（in degree 0 ~ 359)
 }TGPSLocation;
  
-typedef struct
-{ TMcTime time;
-  S32 count;
-  TGPSLocation gpsItems[0];
-}TMSG_DSR_UPLOAD_GPS;
-
-typedef struct
-{ U32 ack_synid;
-  U8  error;
-  TGPSLocation location;
-  U32 time;
-}TMSG_SUA_QUERY_GPS;
-
-typedef struct
-{ TMcTime time;
-  U8 behavior;//0：急加速，1：急减速，2：急转弯，3：翻滚
-}TMSG_DSR_UPLOAD_BEHAVIOR;
 
 typedef struct
 { U8 type; //1:投诉;2:建议
@@ -441,19 +374,6 @@ typedef struct
 { char iccid[SIZE_ICCID+1];//投诉人手机号
 }TMSG_DSR_UPLOAD_ICCID;
 */
-
-typedef struct
-{ char imsi[SIZE_IMSI+1];//投诉人手机号
-}TMSG_DSR_UPLOAD_IMSI;
-
-typedef struct
-{ char boxsn[SIZE_SN_BOX+1];//盒子设备号
-}TMSG_DSR_UPDATE_BOXSN;
-
-typedef struct
-{ U32 timestamp;//抓拍时间戳
-  U32 reserved;
-}TMSG_DSR_NOTIFY_SNAPSHOT;
 
 typedef struct
 { char name[MAXLEN_PACKAGENAME];//流量包名称
@@ -474,44 +394,6 @@ typedef struct
   char param_data[0]; 
 }TMSG_SSR_NOTIFY;
 
-typedef struct
-{ U32  ack_synid;
-  U8   error;
-  char sn808[SIZE_SN_808+1];
-}TMSG_SDA_QUERY_SN808;
-
-typedef struct
-{  char device_sn[SIZE_SN_DEVICE+1];
-}TMSG_USR_QUERY_SN808,TMSG_USR_QUERY_ACCESSNO;
-
-typedef struct
-{ U32  ack_synid;
-  U8   error;
-  char sn808[SIZE_SN_808+1];//电信终端808设备号，对于非电信设备则填零。
-}TMSG_SUA_QUERY_SN808;
-
-typedef struct
-{ U32  ack_synid;
-  U8   error;
-  char snqq[SIZE_SN_QQ+1];
-  char license[256];//目前最长144字节
-}TMSG_SDA_QUERY_SNQQ;
-
-typedef struct
-{ U32  ack_synid;
-  U8   error;
-  char accessno[SIZE_ACCESSNO+1];
-}TMSG_SUA_QUERY_ACCESSNO;
-
-typedef struct
-{ char sn808[SIZE_SN_808+1];
-}TMSG_USR_QUERY_SN_FROM808;
-
-typedef struct
-{ U32  ack_synid;
-  U8   error;
-  char device_sn[SIZE_SN_DEVICE+1];
-}TMSG_SUA_QUERY_SN_FROM808;
 //---------------------------------------------------------------------------
 #pragma pack (pop) 
 //---------------------------------------------------------------------------

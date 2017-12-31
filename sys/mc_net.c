@@ -27,24 +27,18 @@ static BOOL packet_checksum_and_decrypt(TMcPacket *packet){
   TMcMsg *msg=&packet->msg;
   int msgLen=MC_MSG_SIZE(msg);
   if(msg_ValidChecksum(msg,msgLen)){
-    packet->terminal=(msg->sessionid)?(TTerminal *)dtmr_find(terminalLinks,msg->sessionid,0,NULL,(msg->msgid==MSG_TSR_HEARTBEAT)?HEARTBEAT_OVERTIME_S:0):NULL;
-    if(packet->terminal){
-      if(packet->terminal->spyAddr.ip){
-        hsk_sendData(msg,(msgLen<MAXLEN_UDP_DATAGRAM)?msgLen:MAXLEN_UDP_DATAGRAM,&packet->terminal->spyAddr);
+    TTerminal *terminal=(msg->sessionid)?(TTerminal *)dtmr_find(terminalLinks,msg->sessionid,0,NULL,0):NULL;
+    if(terminal){
+      //分配的sessionid与IP地址是绑定的关系，如果不对应表示sessionid已经失效。
+      //TCP与UDP有不同的端口，但是这里只验证UDP端口的绑定关系；
+      if(packet->peerAddr.ip!=terminal->loginAddr.ip){
+        terminal=NULL; //标记设备尚未登录，或者登录超时；
       }
-      if(packet->peerAddr.ip!=packet->terminal->loginAddr.ip || (packet->peerAddr.socket==svrUdpSocket&& packet->peerAddr.port!=packet->terminal->loginAddr.port)){
-       //分配的sessionid与IP地址是绑定的关系，如果不对应表示sessionid已经失效。
-       //由于TCP与UDP有不同的端口，所以只验证UDP端口的绑定关系；
-        #if 0
-        static error_count=0;
-        error_count++; 
-        if(packet->peerAddr.socket==svrUdpSocket&& packet->peerAddr.port!=packet->terminal->loginAddr.port){
-          printf("####%2d#######packet->peerAddr.socket==svrUdpSocket&& packet->peerAddr.port!=packet->terminal->loginAddr.port,%u!=%u::%d::%u\r\n",error_count,packet->peerAddr.port,packet->terminal->loginAddr.port,packet->terminal->term_type,packet->terminal->id);  	    	
-  	}
-        #endif
-        packet->terminal=NULL;
+      else if(packet->peerAddr.port!=terminal->loginAddr.port){
+         if((packet->peerAddr.socket==svrUdpSocket)==(terminal->loginAddr.socket==svrUdpSocket)) terminal=NULL;
       }
     }
+    packet->terminal=terminal;
     if(msg->bodylen>0 && msg->encrypt>ENCRYPTION_NONE) msg_decrypt(msg);
     return TRUE;		
   }
@@ -74,14 +68,13 @@ static TMcPacket *NET_RecvPacket(void *dgramBuffer,int bufferSize){
      packet=(TMcPacket *)hsk_assemble(&packet->peerAddr,msg,sliceLen,msgsize);
      if(packet){
         if(packet_checksum_and_decrypt(packet))return packet;
-        else hsk_releasePacket((THskPacket *)packet); 
+        else hsk_releaseTcpPacket((THskPacket *)packet,TRUE,FALSE); 
      }
    }
-   else{
-    //处理校验错误的UDP报文(将其转发至监控端 ,鉴于复杂度将不处理错误的TCP报文)
-     TTerminal *terminal=dtmr_find2(terminalLinks,0,0,&packet->peerAddr,sizeof(TNetAddr),T_NODE_OFFSET(TTerminal,loginAddr),0);
+ /*  else{
+    //处理校验错误的UDP报文(将其转发至监控端 ,鉴于复杂度将不处理错误的TCP报文) TTerminal *terminal=dtmr_find2(terminalLinks,0,0,&packet->peerAddr,sizeof(TNetAddr),T_NODE_OFFSET(TTerminal,loginAddr),0);
      if(terminal && terminal->spyAddr.ip)hsk_sendData(msg,sliceLen,&terminal->spyAddr);	
-   }
+   }*/
    return NULL;  	
 }
 //---------------------------------------------------------------------------
@@ -97,7 +90,9 @@ static void *mc_dispatch_proc(void *param){
     	}
         mc_dispatchmsg(packet);
   	//((void (*)(TMcPacket *))param)(packet);
-  	hsk_releasePacket((THskPacket *)packet);
+        if(packet->peerAddr.socket!=svrUdpSocket){
+    	   hsk_releaseTcpPacket((THskPacket *)packet,(packet!=pbuf),packet->msg.tcp_short_connection);
+        }
     }	
   }
   return NULL;
@@ -114,7 +109,12 @@ static void *uwb_location_proc(void *param){
   return NULL;
 }
 //---------------------------------------------------------------------------
-// #define      16 
+void Handle_MSG_TSR_HEARTBEAT(TMcPacket *packet){
+  printf("heatbeat\n");
+  dtmr_update(packet->terminal,HEARTBEAT_OVERTIME_S);
+  msg_ack_general(packet,0);
+}
+//---------------------------------------------------------------------------
 void mc_schedule(void){
   int i;
   pthread_t _thread=0;
@@ -133,6 +133,7 @@ void net_init(void){
        int udp_port_array[]={SERVICE_UWB_PORT1,SERVICE_UWB_PORT2,SERVICE_UWB_PORT3};
        svrUdpSocket=hsk_getUdpSocket();
        svrTcpSocket=hsk_getTcpSocket();
+       printf("svrUdpSocket=%d,svrTcpSocket=%d\r\n",svrUdpSocket,svrTcpSocket);
        SetSocketBuffer(svrUdpSocket,MAX_SOCKET_RECV_MEM,MAX_SOCKET_SEND_MEM);
        SetSocketBuffer(svrTcpSocket,MAX_SOCKET_RECV_MEM,MAX_SOCKET_SEND_MEM);
        hsk_append_udp(udp_port_array,3,SIZE_UWB_RECV_BUFFER);
@@ -143,3 +144,4 @@ void net_init(void){
    }		
 }
 //-----------------------------------------------------------------------------
+//

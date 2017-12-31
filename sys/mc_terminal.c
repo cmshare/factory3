@@ -4,6 +4,7 @@ HAND terminalLinks=NULL,commDataLinks=NULL;
 //commDataLinks通用性规则约定：hTaskID存储消息ID，由字段值决定附件数据结构类型。
 //---------------------------------------------------------------------------
 //将终端在线状态变化后通知绑定的用户手机
+/*
 void device_stateNotifyUser(TTerminal *devTerm,U32 devID){
   MYSQL_RES *res=db_queryf("select mc_users.session,mc_devices.sn,mc_devices.state from (mc_users inner join mc_devices on mc_devices.username=mc_users.username) where mc_devices.id=%u ",(devTerm)?devTerm->id:devID);
   if(res){
@@ -25,7 +26,7 @@ void device_stateNotifyUser(TTerminal *devTerm,U32 devID){
       mysql_free_result(res);
   } 
 }
-
+*/
 //---------------------------------------------------------------------------
 void staticMap_generate(TTerminal *terminal){
   U32 end_time=time(NULL);
@@ -45,24 +46,6 @@ static void terminal_HbTimeout(HAND ttasks,void *taskCode,U32 *taskID,char *task
   TTerminal * terminal=(TTerminal *)taskCode;
  // Log_AppendText("\r\n[HeatBeatTimeout:%s]",terminal->name);
   switch(terminal->term_type){
-    case TT_BOX:{
-           db_queryf("update `mc_boxes` set session=0,logouttime=unix_timestamp() where id=%u",terminal->id);
-            MYSQL_RES *res=db_queryf("select id,session,state from mc_devices where boxid=%u",terminal->id);
-            if(res)
-            { MYSQL_ROW row;
-              while((row=mysql_fetch_row(res))){
-                U32 dev_session=atoi(row[1]);
-                U32 dev_state=atoi(row[2]);
-                if(dev_session==0 && dev_state!=DEV_STATE_OFFLINE){
-                  U32 dev_id=atoi(row[0]);
-                  db_queryf("update `mc_devices` set state=%d where id=%u",DEV_STATE_OFFLINE,dev_id);
-                  device_stateNotifyUser(NULL,dev_id);//通知绑定手机终端摄像头已离线
-                }
-              }
-              mysql_free_result(res);
-            }
-         }
-         break;
     case TT_DEVICE:{//device
            U32 box_session=0;
            U32 boxid=((TTermDevice *)terminal)->boxid;
@@ -82,7 +65,7 @@ static void terminal_HbTimeout(HAND ttasks,void *taskCode,U32 *taskID,char *task
              //释放session,并修改终端state(确定全套系统离线).
              db_queryf("update `mc_devices` set session=0,state=%d,logouttime=unix_timestamp() where id=%u",DEV_STATE_OFFLINE,terminal->id);
              terminal->term_state=DEV_STATE_OFFLINE;
-             device_stateNotifyUser(terminal,0);//通知绑定手机终端摄像头已离线
+             //device_stateNotifyUser(terminal,0);//通知绑定手机终端摄像头已离线
            }
            staticMap_generate(terminal);
          }
@@ -118,8 +101,6 @@ void terminal_init(void)
       { node->term_type=TT_USER;
         node->session=sessionid;
         node->loginAddr.socket=local_UdpSocket;
-        node->live_user=0;//直播路径
-        node->live_state=STAT_LIVE_CLOSE; //直播状态
         node->id=atoi(row[0]);//field["id"]
         strncpy(node->name,row[1],SIZE_MOBILE_PHONE+1);//field["username"]
         node->loginAddr.ip=atoi(row[3]);//field["ip"]
@@ -127,7 +108,6 @@ void terminal_init(void)
         node->group=atoi(row[5]);//field["groupid"]
         node->sex_type=atoi(row[6]);//field["sex"]
         node->msg_push_acceptable=atoi(row[7]);//field["msgpush"]
-        node->live_push_acceptable=atoi(row[8]);//field["livepush"]
       }
     }   
     mysql_free_result(res); 
@@ -143,8 +123,6 @@ void terminal_init(void)
       { node->term_type=TT_DEVICE;
         node->session=sessionid; 
         node->loginAddr.socket=local_UdpSocket;
-        node->live_state=STAT_LIVE_CLOSE; //直播状态
-        node->live_user=0;//直播路径
         node->id=atoi(row[0]);//field["id"]
         strncpy(node->name,row[1],SIZE_SN_DEVICE+1);//field["sn"]
         node->loginAddr.ip=atoi(row[3]);//field["ip"]
@@ -153,26 +131,6 @@ void terminal_init(void)
         node->term_state=atoi(row[6]);//field["state"]
         ((TTermDevice *)node)->boxid=atoi(row[7]);//field["boxid"];
         ((TTermDevice *)node)->onlinetime=atoi(row[8]);
-      }
-    }   
-    mysql_free_result(res); 
-  }
-
-  res=db_query("select id,sn,session,ip,port,groupid from `mc_boxes` where session<>0");
-  if(res)
-  { MYSQL_ROW row;
-    while((row = mysql_fetch_row(res)))
-    { U32 sessionid=atoi(row[2]);//field["session"]
-      TTerminal *node=(TTerminal *)dtmr_add(terminalLinks,sessionid,0,0,NULL,sizeof(TTermBox),HEARTBEAT_OVERTIME_S);
-      if(node)
-      { node->term_type=TT_BOX;
-        node->session=sessionid; 
-        node->loginAddr.socket=local_UdpSocket;
-        node->id=atoi(row[0]);//field["id"]
-        strncpy(node->name,row[1],SIZE_SN_BOX+1);//field["sn"]
-        node->loginAddr.ip=atoi(row[3]);//field["ip"]
-        node->loginAddr.port=atoi(row[4]);//field["port"]
-        node->group=atoi(row[5]);//field["groupid"]
       }
     }   
     mysql_free_result(res); 

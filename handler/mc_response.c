@@ -1,31 +1,15 @@
 #include "mc_routine.h"
 //---------------------------------------------------------------------------
 void Response_MSG_TIMEOUT(TMcPacket *request,void *extraData){
-  switch(request->msg.msgid){
+  switch(request->msg.msgid){/*
       case MSG_SUR_NOTIFY_MSGBOX:{
              extern void push_device_msg_timeout(TMcPacket *);
              push_device_msg_timeout(request);
            }
-           break;
+           break;*/
   }
 }
 
-void Response_MSG_DSA_QUERY_STATE(TMcPacket *response,void *extraData){
- TMcPacket *sus_packet=(TMcPacket *)extraData;
- TMSG_DSA_QUERY_STATE *ackData=(TMSG_DSA_QUERY_STATE *)response->msg.body;
- TMcMsg *ackmsg=msg_alloc(MSG_SUA_QUERY_STATE,sizeof(TMSG_SUA_QUERY_STATE));
- TMSG_SUA_QUERY_STATE *ackbody=(TMSG_SUA_QUERY_STATE *)ackmsg->body;
- ackbody->error=ackData->error;
- ackbody->state=ackData->state;
- ackbody->ack_synid=sus_packet->msg.synid;
- msg_send(ackmsg,sus_packet,NULL);
- if(ackData->error==0 && response->terminal->term_type==TT_DEVICE && response->terminal->term_state!=ackData->state){
-   response->terminal->term_state=ackData->state;
-   db_queryf("update `mc_devices` set state=%d where id=%u",ackData->state,response->terminal->id);
- } 
- //printf("###RESPONSE STATE %d\n",(raw->error)?-1:raw->state);
- //printf("####respose query state =%d\r\n",ackbody->error);
-}
 
 void  Response_MSG_DSA_WAKEUP(TMcPacket *response,void *extraData)
 { TMcPacket *sus_packet=(TMcPacket *)extraData;

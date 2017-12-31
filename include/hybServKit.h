@@ -21,7 +21,7 @@ int    hsk_getTcpSocket(void);
 void   hsk_sendData(void *data,int datalen,TNetAddr *peerAddr);
 int    hsk_readData(void *recvBuf, int bufSize,TNetAddr *peerAddr);
 int    hsk_readDatagram(void *recvBuf, int bufSize,TNetAddr *peerAddr);
-void   hsk_releasePacket(THskPacket *packet);
+void   hsk_releaseTcpPacket(THskPacket *packet,BOOL isHeapMsg,BOOL isShotConnect);
 THskPacket *hsk_assemble(TNetAddr *peerAddr,void *sliceData,int sliceLen,int predictPacketSize);
 int    hsk_httpPost(char *URL,void *formData,int formSize,char *responseBuffer,int buffersize,int sTimeout);
 int    hsk_httpGet(char *URL,char *responseBuffer,int buffersize,int sTimeout);

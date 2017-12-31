@@ -26,7 +26,6 @@ int main(int argc, char* argv[]){
 	
   upload_init();
 	 
-  mcufw_init();
 
   routine_init();
 
