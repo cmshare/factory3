@@ -1,8 +1,8 @@
 #.gitignore
-/hybServKit
+#/hybServKit
+#/include/mc_config.h
 /uploadfiles
 /tags
-/include/mc_config.h
 /doc
 *.o
 *.a
