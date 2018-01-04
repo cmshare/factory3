@@ -9,10 +9,14 @@ extern void mcufw_init(void);
 extern void routine_init(void);
 extern void dblog_init(void);
 extern void mc_schedule(void);
+extern void UWB_system_init(void);
+extern void session_init(void);
 //---------------------------------------------------------------------------
 int main(int argc, char* argv[]){
   //printf("SOCKET_MAX_LISTEN=%d\r\n",SOCKET_MAX_LISTEN);
   srand((int)time(NULL));
+
+  session_init();
 
   db_init();//database initialize	
 
@@ -23,6 +27,8 @@ int main(int argc, char* argv[]){
   net_init();//initialize tcp and udp socket  
 	
   terminal_init();//load and initialize devices and users;
+
+  UWB_system_init();
 	
   upload_init();
 	 

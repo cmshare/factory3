@@ -15,25 +15,23 @@ typedef unsigned char     U8;
 typedef void *            HAND;
 #if (_MSC_VER  || __BORLANDC__)     /*detect operation system type*/
 //---------------------------------------------------------------------------
-//#define FD_SETSIZE        1024   //Must be redefined before include winsocket.h
 #include <winsock.h>
-typedef __int64            S64;
-typedef unsigned __int64   U64;
+typedef __int64            INT64;
+typedef unsigned __int64   UINT64;
 #define wsa_startup()                                   do{WSADATA wsaD;WORD SOCKET_VERSION=MAKEWORD(2,2);WSAStartup(SOCKET_VERSION,&wsaD);}while(0)
 #define os_createThread(pTaskHandle,thread_proc,param)  (*(pTaskHandle)=CreateThread(0,0,(DWORD WINAPI (*)(LPVOID))thread_proc,param,0,NULL))
-#define os_joinThread(pTaskHandle)                      WaitForSingleObject((HANDLE)pTaskHandle, INFINITE)
 #define os_createSemphore(pSemHandle,initialValue)      *(pSemHandle)=CreateSemaphore(NULL,initialValue,65535,NULL)
 #define os_obtainSemphore(semHandle)                    (WaitForSingleObject((HANDLE)semHandle,INFINITE)==WAIT_OBJECT_0)
 #define os_tryObtainSemphore(semHandle)                 (WaitForSingleObject((HANDLE)semHandle,0)==WAIT_OBJECT_0)
 #define os_waitSemphore(semHandle,msWaitTime)           WaitForSingleObject((HANDLE)semHandle,msWaitTime)
 #define os_releaseSemphore(semHandle)                   ReleaseSemaphore((HANDLE)semHandle,1,NULL)
 #define os_destroySemphore(semHandle)                   CloseHandle((HANDLE)semHandle)
-#define os_closeSocket(s)                               closesocket(s)
+#define os_closesocket(s)                               closesocket(s)
 #define os_sockopt_t                                    char
 #define os_socklen_t                                    int
 #define os_msRunTime                                   GetTickCount
 //---------------------------------------------------------------------------
-#elif (__linux__ && __x86_64__)
+#elif (__linux__)// && __x86_64__)
 //---------------------------------------------------------------------------
 #include <sys/time.h>
 #include <pthread.h>
@@ -47,18 +45,17 @@ typedef unsigned __int64   U64;
 #include <fcntl.h>      //文件控制定义
 #include <unistd.h>     //Unix标准函数定义
 #include <mysql/mysql.h>//mysql database will introduce macro _mysql_h
-typedef long          S64;
-typedef unsigned long U64;
+typedef long          INT64;
+typedef unsigned long UINT64;
 U32     os_msRunTime(void);
 #define os_createThread(pTaskHandle,thread_proc,param)  (pthread_create((pthread_t *)pTaskHandle,NULL,thread_proc,param)==0)
-#define os_joinThread(pTaskHandle)                      pthread_join((pthread_t *)pTaskHandle, NULL)
 #define os_createSemphore(pSemHandle,initialValue)      do{*(pSemHandle)=malloc(sizeof(sem_t));sem_init((sem_t *)(*(pSemHandle)),0,initialValue);}while(0)
 #define os_obtainSemphore(semHandle)                    (sem_wait((sem_t *)semHandle)==0)
 #define os_tryObtainSemphore(semHandle)                 (sem_trywait((sem_t *)semHandle)==0)
 #define os_waitSemphore(semHandle,msWaitTime)           do{struct timeval _waitimeout;U32 part_msec=msWaitTime%1000;gettimeofday(&_waitimeout,NULL);_waitimeout.tv_sec+=(msWaitTime/1000);if(part_msec){_waitimeout.tv_usec+=(part_msec*1000);if(_waitimeout.tv_usec>=1000000){_waitimeout.tv_usec-=1000000;_waitimeout.tv_sec++;}} sem_timedwait((sem_t *)semHandle,(const struct timespec *)&_waitimeout);}while(0)
 #define os_releaseSemphore(semHandle)                   sem_post((sem_t *)semHandle)
 #define os_destroySemphore(semHandle)                   do{sem_destroy((sem_t *)semHandle);free(semHandle);}while(0)
-#define os_closeSocket(s)                               close(s)
+#define os_closesocket(s)                               close(s)
 #define os_sockopt_t                                    void
 #define os_socklen_t                                    socklen_t
 //---------------------------------------------------------------------------
@@ -144,24 +141,15 @@ int    str_replace(char *pText,char *src,char *des);
 char  *stristr(char *src,char *obj); //字符串搜索（忽略大小写）
 int    str_lenOfUTF8(char *str);//计算str字符数目
 char  *str_xmlSeek(char *xmlbuf,char *key,int *len);
-char  *str_keySeek(char *keyList,char *key,char splitter);
+void  *mem_search(void *srcMem,int memSize,void *desData,int dataSize);
+void   mem_reverse(void *p_buf,int dLen);
 int    str_fromTime(char *strTime,char *format,time_t timestamp);
 time_t str_toTime(char *strTime,char *format);
 int    tm_getLocalHour(time_t timestamp);//get local hour from unix timestamp;
 //---------------------------------------------------------------------------
-// other Algorithm
-//---------------------------------------------------------------------------
-U8     mem_CRC8(void *data,int dataLen);
-U16    mem_CRC16_modbus(void *data,int dataLen);
-U8     mem_XOR(void *data,int dataLen);
-void   mem_MD5(void* data,int dataLen,U8 ret[16]);
-void  *mem_search(void *srcMem,int memSize,void *desData,int dataSize);
-void   mem_reverse(void *p_buf,int dLen);
-void   exit_with_exception(char *errmsg);
-//---------------------------------------------------------------------------
 // QueueBuffer
 //---------------------------------------------------------------------------
-HAND   qb_create(int size);
+HAND qb_create(int size);
 void   qb_destroy(HAND qb);
 void   qb_clear(HAND qb);
 int    qb_size(HAND qb);
@@ -173,8 +161,8 @@ void  *qb_freeSpace(HAND qb,int *size1,int *size2);
 int    qb_write(HAND qb,void *buf, int len);
 int    qb_read(HAND qb,void *buf, int len);
 int    qb_peek(HAND qb,void *buf,int len);
-BOOL   qb_blockRead(HAND qb,void *buf,int len);
-BOOL   qb_blockWrite(HAND qb,void *buf,int len);
+int    qb_blockRead(HAND qb,void *buf,int len);
+int    qb_blockWrite(HAND qb,void *buf,int len);
 //int    qb_blockReadPrefetch(HAND qb,void **pbuf,int minimum);
 //int    qb_blockWritePrefetch(HAND qb,void **pbuf,int minimum);
 //---------------------------------------------------------------------------
@@ -182,31 +170,30 @@ BOOL   qb_blockWrite(HAND qb,void *buf,int len);
 //---------------------------------------------------------------------------
 void   mb_create(int queue_size);
 void   mb_destroy(void);
-void   mb_clear(void);
 int    mb_post(void *msgData,int msgLen);
-int    mb_post2(void *msgHead,int headLen,void *msgData,int dataLen);
 int    mb_receive(void *msgBuf,int bufSize);
 //---------------------------------------------------------------------------
 // TDateTimer
 //---------------------------------------------------------------------------
-enum  {DTMR_LOCK=0x80000000U,DTMR_ENABLE=0x40000000U,DTMR_CYCLE=0x20000000U,DTMR_TIMEOUT_DELETE=0x10000000U,DTMR_OVERRIDE=0x08000000U,DTMR_EXIST=0x00000001U,DTMR_TIMEOUT_STOP=0,DTMR_DISABLE=0,DTMR_NOVERRIDE=0};
-typedef void (*DTMR_TimeoutEvent)(HAND,void *,U32 *,char *);
+enum  {DTMR_LOCK=0x80000000U,DTMR_NOVERRIDE=0x40000000U,DTMR_FOREVER=0x20000000U,DTMR_KEEPLIFE=0x10000000U};
+typedef void (*DTMR_TimeoutEvent)(HAND,void *,U32 *,char *,U32 *);
 HAND  dtmr_create(int hashLen,U32 sHoldTime,DTMR_TimeoutEvent OnTimeout);
 void  dtmr_destroy(HAND dtimer);
-void *dtmr_add(HAND dtimer,U32 nodeIDL,U32 nodeIDH,char *nodeName,void *nodeData,U32 dataSize,U32 msLifeTime,U32 *options);
-void *dtmr_find(HAND dtimer,U32 nodeIDL,U32 nodeIDH,char *nodeName,BOOL addLock);
-void *dtmr_findById(HAND dtimer,U32 nodeIDL,U32 nodeIDH,BOOL addLock);
-void *dtmr_findByName(HAND dtimer,char *nodeName,BOOL addLock);
-void *dtmr_findByData(HAND dtimer,U32 nodeIDL,U32 nodeIDH,void *nodeData,U32 dataSize,int dataOffset,BOOL addLock);
-BOOL  dtmr_update(void *dnode,U32 msUpdateLifeTime,U32 options);
-BOOL  dtmr_lock(void *dnode);
-void  dtmr_unlock(void *dnode,U32 msUpdateLifeTime);
+void *dtmr_add(HAND dtimer,U32 nodeIDL,U32 nodeIDH,char *nodeName,void *nodeData,U32 nodeSize,U32 sLifeTime);
+void *dtmr_find(HAND dtimer,U32 nodeIDL,U32 nodeIDH,char *nodeName,U32 sUpdateLifeTime);
+void *dtmr_find2(HAND dtimer,U32 nodeIDL,U32 nodeIDH,void *nodeData,U32 nodeSize,int extraOffset,U32 sUpdateLifeTime);
+void  dtmr_update(void *dnode,U32 sUpdateLifeTime);
+int   dtmr_getOverrideCount(void *dnode);
 char *dtmr_getName(void *dnode);
 int   dtmr_getSize(void *dnode);
-void  dtmr_delete(void *dnode);
+void  dtmr_unlock(void *dnode,U32 sUpdateLifeTime);
+void  dtmr_remove(void *dnode);
 //---------------------------------------------------------------------------
 // TcmSocket
 //---------------------------------------------------------------------------
+#define TCP_CONNECTION_TIMEOUT_S          100    //unit:second
+#define SOCKET_MAX_DGRAMSIZE              1500
+#define SOCKET_MAX_LISTEN                 FD_SETSIZE  //服务器最大并发连接数（不超过FD_SETSIZE,修改FD_SETSIZE在系统头文件中。）
 typedef enum{spICMP,spIGMP,spUDP,spRawIP,spTcpServer,spTcpClient}TSocketProtocol;
 typedef int  (*TSocketRecvEvent)(HAND,TNetAddr *);
 typedef void (*TSocketCloseEvent)(HAND);
@@ -226,10 +213,10 @@ void SOCKET_SetEvents(HAND hSocket,TSocketRecvEvent onReceive,TSocketCloseEvent 
 void SOCKET_SetTag(HAND hSocket,HAND tag);
 HAND SOCKET_GetTag(HAND hSocket);
 //------------------------------------------------------------------------------------------
-U32  SOCKET_HostIP(char *host_name);
-BOOL SOCKET_IP2Str(U32 ip_data,char *ipstr);
+U32  SOCKET_IPatoi(char *host_name);
+BOOL SOCKET_IPitoa(U32 ip_data,char *ipstr);
 BOOL SOCKET_CheckIPStr(char *ipstr);
-int  SOCKET_HttpGet(char *URL,char *responseBuffer,int buffersize,int msTimeout);
-int  SOCKET_HttpPost(char *URL,void *formData,int formSize,char *responseBuffer,int buffersize,int msTimeout);
+int  SOCKET_HttpGet(char *URL,char *responseBuffer,int buffersize,int sTimeout);
+int  SOCKET_HttpPost(char *URL,void *formData,int formSize,char *responseBuffer,int buffersize,int sTimeout);
 //------------------------------------------------------------------------------------------
 #endif

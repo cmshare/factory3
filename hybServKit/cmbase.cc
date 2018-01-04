@@ -1,9 +1,9 @@
 /******************************************************************************\
 * Copyright (c)  2005  cmShare, All rights Reserved                           *
 * FILE NAME:		       cmBase.c                                               *
-* PROGRAMMER:	   	     mingo.chan                                             *
+* PROGRAMMER:	   	     ming.chan                                              *
 * Date of Creation:		 2005/03/12                                             *
-* Date of Last Modify: 2005/05/11 (NO.1)                                      *
+* Date of Last Modify: 2005/05/11                                             *
 * DESCRIPTION: 			in common use method lib                                  *
 \******************************************************************************/
 #include "cmbase.h"
@@ -11,17 +11,12 @@
 // ×Ö·û´®´¦Àí
 //---------------------------------------------------------------------------
 BOOL str_isNumeric(char *data)
-{ char ch;
-  if(!data)return FALSE;
-  else ch=*data;
-  if((ch>='0' && ch<='9')|| ch=='-'||ch=='+')ch=*data++;
-  else return FALSE;
-  while(ch>='0' && ch<='9')ch=*data++;
-  if(ch=='.'){
-    ch=*data++;
-    while(ch>='0' && ch<='9')ch=*data++;
+{ if(!data || *data==0)return FALSE;
+  while(*data)
+  { if(*data<'0'||*data>'9')return(FALSE);
+    else data++;
   }
-  return (ch==0);
+  return(TRUE);
 }
 
 //×Ö·û´®×ªÕûÊı£¬¿ÉÓÃÏµÍ³º¯ÊıatoiÈ¡´ú¡£
@@ -127,10 +122,8 @@ int str_bytesToHex(void *srcData,int dataLen,char *hexBuf,int bufSize,char split
    else space=bufSize>>1;
    if(dataLen>space)dataLen=space;
    for(i=space=0;i<dataLen;i++)
-   { unsigned char chD=((unsigned char *)srcData)[i];
-     unsigned char chH=chD>>4,chL=chD&0x0f;
-     hexBuf[space++]=HEX_CHAR(chH);
-     hexBuf[space++]=HEX_CHAR(chL);
+   { hexBuf[space++]=HEX_CHAR(((unsigned char *)srcData)[i]>>4);
+     hexBuf[space++]=HEX_CHAR(((unsigned char *)srcData)[i]&0x0F);
      if(splitter)hexBuf[space++]=splitter;
    }
    if(space<bufSize)hexBuf[space]=0;
@@ -140,33 +133,23 @@ int str_bytesToHex(void *srcData,int dataLen,char *hexBuf,int bufSize,char split
 int str_hexToBytes(char *strHex,void *dataBuf,int bufSize)
 { if(!strHex || !dataBuf || bufSize<=0)return 0;
   else {
-   int ret=0;
-   unsigned char halfByte,pendByte;
-   BOOL  halfMatched=FALSE,halfPend=FALSE;
-   while((halfByte=*strHex++)!=0)
-   { if(halfByte>='0'&&halfByte<='9') halfByte=halfByte-'0';
-     else if(halfByte>='a'&&halfByte<='f')halfByte=halfByte-'a'+10;
-     else if(halfByte>='A'&&halfByte<='F')halfByte=halfByte-'A'+10;
-     else{halfMatched=FALSE;continue;}
-     if(halfMatched)
-     { ((char *)dataBuf)[ret++]=(pendByte<<4)|halfByte;
-        if(ret>=bufSize)return ret;
-        halfPend=FALSE;
-     }
+   unsigned char ch;
+   int i,one_byte,index=-1;
+   BOOL  gethigh=FALSE;
+   for(i=0;(ch=strHex[i])!=0;i++)
+   { if(ch>='0'&&ch<='9') one_byte=ch-'0';
+     else if(ch>='a'&&ch<='f')one_byte=ch-'a'+10;
+     else if(ch>='A'&&ch<='F')one_byte=ch-'A'+10;
      else
-     { if(halfPend)
-       { ((char *)dataBuf)[ret++]=pendByte;
-         if(ret>=bufSize)return ret;
-       }
-       else
-       { halfPend=TRUE;
-       }
-       pendByte=halfByte;
+     { gethigh=FALSE;
+       continue;
      }
-     halfMatched=!halfMatched;
+     if(gethigh) ((char *)dataBuf)[index]=(((char *)dataBuf)[index] << 4) | (one_byte & 0x0f);
+     else if(++index<bufSize)((char *)dataBuf)[index]=one_byte;
+     else return index;
+     gethigh=!gethigh;
    }
-   if(halfPend)((char *)dataBuf)[ret++]=pendByte;
-   return ret;
+   return index+1;
  }
 }
 
@@ -294,8 +277,6 @@ int str_replace(char *pText,char *src,char *des)
   return replacecount; //·µ»ØÌæ»»µÄ´ÎÊı
 }
 
-//´Ó×Ö·û´®²ÎÊıÁĞ±íÖĞ²éÕÒ£¨²ÎÊı·Ö»í·ûÎªÖ¸¶¨µÄsplitterºÍ'\0'£©, ·µ»Ø·Ö¸î·ûËùÔÚÎ»ÖÃÖ¸Õë¡£
-//eg. str_keySeek("username=cm&user=chem&pwd=123456", "user",'=');
 char  *str_keySeek(char *keyList,char *key,char splitter)
 { if(keyList && key && splitter)
   { int i=0,state=0;
@@ -343,11 +324,6 @@ void mem_reverse(void *p_buf,int dLen)
     p[i]=p[the_pos];
     p[the_pos]=temp;
   }
-}
-
-void exit_with_exception(char *errmsg){
-  if(errmsg)printf("\n%s\n",errmsg);
-  abort();//force core dump
 }
 //---------------------------------------------------------------------------
 //utf8×Ö·û³¤¶È1-6£¬¿ÉÒÔ¸ù¾İÃ¿¸ö×Ö·ûµÚÒ»¸ö×Ö½ÚÅĞ¶ÏÕû¸ö×Ö·û³¤¶È
@@ -399,7 +375,7 @@ int str_fromTime(char *strTime,char *format,time_t timestamp)
 time_t str_toTime(char *strTime,char *format)
 { if(strTime && *strTime)
   { struct tm tm_time;
-    strptime(strTime,(format)?format:"%Y-%m-%d %H:%M:%S", &tm_time);
+    strptime(strTime,(format)?format:"%Y-%m-%d %H:%M:%S", &tm_time);//Õâ¸öº¯Êı½ö´øÈÕÆÚ»á³ö´íÎó½á¹û
     return mktime(&tm_time);
   }
   else return (time_t)0;
@@ -413,10 +389,10 @@ int tm_getLocalHour(time_t timestamp)
 //---------------------------------------------------------------------------
 // Queue buffer api
 //---------------------------------------------------------------------------
-typedef struct{int size, readpos, writepos;char buffer[1];}TQueueBuffer;
+typedef struct{int size, readpos, writepos;char buffer[0];}TQueueBuffer;
 /*Àí½â£º
 qb->redaposÖ¸Ïò½«Òª¶Á¶øÉĞÎ´¶ÁµÄÎ»ÖÃ£»
-qb->writeposÖ¸Ïò½«ÒªĞ´¶øÉĞÎ´Ğ´µÄÎ»ÖÃ£»
+qb->redaposÖ¸Ïò½«ÒªĞ´¶øÉĞÎ´Ğ´µÄÎ»ÖÃ£»
 qb->sizeÊÇÖ¸¶ÓÁĞµÄ´æ´¢¿Õ¼ä£¬µ«ÊÇ¿ÉÓÃ¿Õ¼äÖ»ÓĞqb->size-1¸ö£¬
 Òò´Ë£¬¶ÓÁĞ¿ÕÊ±£¬¿ÉÓÃ¿Õ¼äÊÇqb->size-1£»¶ÓÁĞÂúÊ±£¬Ğ´ÈëÊı¾İ×ÜÁ¿Ò²ÊÇqb->size-1£»
 Èç¹ûÇ¿ĞĞĞ´Èëqb->size¸öÊı¾İ£¬±ØÈ»µ¼ÖÂ¶ÓÁĞÒç³ö¡£
@@ -466,28 +442,59 @@ int qb_freeSize(HAND qb)
   }else return 0;
 }
 
+void *qb_usedSpace(HAND qb,int *size1, int *size2)
+{ if(_QB_WP(qb)>=_QB_RP(qb))
+  { if(size1)*size1=_QB_WP(qb)-_QB_RP(qb);
+                if(size2)*size2=0;
+  }
+  else
+  { if(size1)*size1=_QB_SIZE(qb)-_QB_RP(qb);
+                if(size2)*size1=_QB_WP(qb);
+  }
+  return _QB_BUF(qb)+_QB_RP(qb);
+}
+
+void *qb_freeSpace(HAND qb,int *size1,int *size2)
+{ if(_QB_WP(qb)<_QB_RP(qb))
+  { if(size1)*size1=_QB_RP(qb)-_QB_WP(qb)-1;
+                if(size2)*size2=0;
+  }
+  else if(_QB_RP(qb)==0)
+  { if(size1)*size1=_QB_SIZE(qb)-_QB_WP(qb)-1;
+                if(size2)*size2=0;
+        }       
+  else
+        {       if(size1)*size1=_QB_SIZE(qb)-_QB_WP(qb);
+                if(size2)*size2=_QB_RP(qb)-1;
+        }
+  return _QB_BUF(qb)+_QB_WP(qb);
+}
+
 int qb_write(HAND qb,void *buf, int len)
 { if(qb && len>0)
-  { int qbSize,wp_new;
+  { int BytesTail,BytesAhead;
     int remaims=_QB_FREE_SIZE(qb);
     if(len>remaims)
-    { if(remaims>0)len=remaims;
-    	else return 0;
+    { if(remaims<=0)return 0;
+      else len=remaims;
     }
-    qbSize=_QB_SIZE(qb);
-    wp_new=_QB_WP(qb)+len;
-    if(wp_new<qbSize)
+    BytesAhead=_QB_WP(qb)+len-_QB_SIZE(qb);
+    if(BytesAhead<0)
     { if(buf)memcpy(_QB_BUF(qb)+_QB_WP(qb), buf, len);
+      _QB_WP(qb) += len;
+    }
+    else if(BytesAhead==0)
+    { if(buf)memcpy(_QB_BUF(qb)+_QB_WP(qb), buf, len);
+      _QB_WP(qb) = 0;
     }
     else
-    { wp_new-=qbSize;
+    { BytesTail=len-BytesAhead;
       if(buf)
-      { int BytesTail=len-wp_new;
-      	memcpy(_QB_BUF(qb)+_QB_WP(qb), buf , BytesTail);
-        if(wp_new)memcpy(_QB_BUF(qb),(char *)buf+BytesTail, wp_new );
+      { memcpy(_QB_BUF(qb)+_QB_WP(qb), buf , BytesTail);
+        memcpy(_QB_BUF(qb),(char *)buf+BytesTail, BytesAhead );
       }
+      _QB_WP(qb) = BytesAhead;
     }
-    _QB_WP(qb) = wp_new;
     return len;  /*·µ»ØÊµ¼ÊĞ´ÈëµÄ×Ö½ÚÊı*/
   }else return 0;
 }
@@ -500,23 +507,26 @@ int qb_read(HAND qb,void *buf, int len)
       if(++_QB_RP(qb)>=_QB_SIZE(qb))_QB_RP(qb)=0;
     }
     else
-    { int rp_new,qb_size;
-      int usedSize=_QB_USED_SIZE(qb);
-      if(len>usedSize)len=usedSize;
-      qb_size=_QB_SIZE(qb);
-      rp_new=_QB_RP(qb)+len;
-      if(rp_new<qb_size)
+    { int BytesTail,BytesAhead;
+      int QueueBytes=_QB_USED_SIZE(qb);
+      if(len>QueueBytes)len=QueueBytes;
+      BytesAhead=_QB_RP(qb)+len-_QB_SIZE(qb);
+      if(BytesAhead<0)
       { if(buf)memcpy(buf, _QB_BUF(qb)+_QB_RP(qb), len);
+        _QB_RP(qb)+=len;
+      }
+      else if(BytesAhead==0)
+      { if(buf)memcpy(buf, _QB_BUF(qb)+_QB_RP(qb), len);
+        _QB_RP(qb)=0;
       }
       else
-      { rp_new-=qb_size;
+      { BytesTail=len-BytesAhead;
         if(buf)
-        { int BytesTail=len-rp_new;
-        	memcpy(buf, _QB_BUF(qb)+_QB_RP(qb), BytesTail );
-          if(rp_new)memcpy((char *)buf+BytesTail, _QB_BUF(qb), rp_new);
+        { memcpy(buf, _QB_BUF(qb)+_QB_RP(qb), BytesTail );
+          memcpy((char *)buf+BytesTail, _QB_BUF(qb), BytesAhead);
         }
+        _QB_RP(qb)=BytesAhead;
       }
-      _QB_RP(qb)=rp_new;
     }
     return len;
   }else return 0;
@@ -545,36 +555,9 @@ int qb_peek(HAND qb,void *buf,int len)
   }else return 0;
 }
 
-void *qb_usedSpace(HAND qb,int *size1, int *size2)
-{ if(_QB_WP(qb)>=_QB_RP(qb))
-  { if(size1)*size1=_QB_WP(qb)-_QB_RP(qb);
-    if(size2)*size2=0;
-  }
-  else
-  { if(size1)*size1=_QB_SIZE(qb)-_QB_RP(qb);
-    if(size2)*size1=_QB_WP(qb);
-  }
-  return _QB_BUF(qb)+_QB_RP(qb);
-}
-
-void *qb_freeSpace(HAND qb,int *size1,int *size2)
-{ if(_QB_WP(qb)<_QB_RP(qb))
-  { if(size1)*size1=_QB_RP(qb)-_QB_WP(qb)-1;
-		if(size2)*size2=0;
-  }
-  else if(_QB_RP(qb)==0)
-  { if(size1)*size1=_QB_SIZE(qb)-_QB_WP(qb)-1;
-		if(size2)*size2=0;
-	}	
-  else
-	{	if(size1)*size1=_QB_SIZE(qb)-_QB_WP(qb);
-		if(size2)*size2=_QB_RP(qb)-1;
-	}
-  return _QB_BUF(qb)+_QB_WP(qb);
-}
 #if 0
 int qb_blockWritePrefetch(HAND qb,void **pbuf,int minimum)
-{ //´Ó¶ÓÁĞÖĞÈ¡³öµØÖ·Á¬ĞøµÄ¿ÕÏĞ¿éµÄÖ¸ÕëÒÔ¼°µÄ¿ÕÏĞ¿é´óĞ¡£¬¿ÕÏĞ¿éµØÖ·Í¨¹ıpbuf²ÎÊı·µ»Ø,¿ÕÏĞ¿é´óĞ¡Í¨¹ıº¯Êı·µ»Ø¡£
+{ //´Ó¶ÓÁĞÖĞ¶Á³öµØÖ·Á¬ĞøµÄ¿ÕÏĞ¿éµÄÖ¸ÕëÒÔ¼°µÄ¿ÕÏĞ¿é´óĞ¡£¬¿ÕÏĞ¿éµØÖ·Í¨¹ıpbuf²ÎÊı·µ»Ø,¿ÕÏĞ¿é´óĞ¡Í¨¹ıº¯Êı·µ»Ø¡£
   //Èç¹ûminimum²ÎÊı´óÓÚ0ÇÒÁ¬Ğø¿ÕÏĞ¿éµÄ³¤¶ÈĞ¡ÓÚminimumÊ±£¬Ôòº¯Êı·µ»ØÖµ½«×÷ÈçÏÂÁ½ÖÖÇéĞÎµÄµ÷Õû£º
   //::Ò»ÖÖÊÇ¶ÓÁĞ×ÜµÄ¿ÉĞ´¿Õ¼ä²»¹»£¨·µ»Ø0£©£¬µÚ¶şÖÖÊÇÁ¬ĞøĞ´¿Õ¼ä²»¹»£¨·µ»ØÈ¡µ½µÄÁ¬Ğø¿Õ¼ä´óĞ¡£©¡£
   if(qb)
@@ -593,7 +576,7 @@ int qb_blockWritePrefetch(HAND qb,void **pbuf,int minimum)
 }
 
 int qb_blockReadPrefetch(HAND qb,void **pbuf,int minimum)
-{ //´Ó¶ÓÁĞÖĞÈ¡³öµØÖ·Á¬ĞøµÄÊı¾İ¿éµÄÖ¸ÕëÒÔ¼°µÄÊı¾İ¿é´óĞ¡£¬Êı¾İ¿éµØÖ·Í¨¹ıpbuf²ÎÊı·µ»Ø,Êı¾İ¿é´óĞ¡Í¨¹ıº¯Êı·µ»Ø¡£
+{ //´Ó¶ÓÁĞÖĞ¶Á³öµØÖ·Á¬ĞøµÄÊı¾İ¿éµÄÖ¸ÕëÒÔ¼°µÄÊı¾İ¿é´óĞ¡£¬Êı¾İ¿éµØÖ·Í¨¹ıpbuf²ÎÊı·µ»Ø,Êı¾İ¿é´óĞ¡Í¨¹ıº¯Êı·µ»Ø¡£
   //Èç¹ûminimum²ÎÊı´óÓÚ0ÇÒÁ¬ĞøÊı¾İ¿éµÄ³¤¶ÈĞ¡ÓÚminimumÊ±£¬Ôòº¯Êı·µ»ØÖµ½«×÷ÈçÏÂÁ½ÖÖÇéĞÎµÄµ÷Õû£º
   //::Ò»ÖÖÊÇ¶ÓÁĞ×ÜµÄ¿É¶ÁÄÚÈİ²»¹»£¨·µ»Ø0£©£¬µÚ¶şÖÖÊÇÁ¬Ğø¶Á¿Õ¼ä²»¹»£¨·µ»ØÈ¡µ½µÄÁ¬Ğø¿Õ¼ä´óĞ¡£©¡£
   if(qb)
@@ -610,7 +593,7 @@ int qb_blockReadPrefetch(HAND qb,void **pbuf,int minimum)
 }
 #endif
 
-BOOL qb_blockRead(HAND qb,void *buf,int len)
+int qb_blockRead(HAND qb,void *buf,int len)
 { //´Ó¶ÓÁĞÖĞ¶Á³öÖ¸¶¨³¤¶ÈÇÒµØÖ·Á¬ĞøµÄÄÚÈİ¡£¶ÓÁĞÎ²²¿²»×ãµÄ¿Õ¼ä½«±»Ìø¹ı¡£
   //·µ»ØÊµ¼Ê¶ÁÈ¡µÄ³¤¶È£¬ÒªÃ´µÈÓÚlen£¬ÒªÃ´Îª0;
   //ÔÊĞíbufÎª¿Õ£¬±íÊ¾Ö»¸Ä±ä¶ÁÖ¸Õë£»
@@ -636,7 +619,7 @@ BOOL qb_blockRead(HAND qb,void *buf,int len)
   return 0;
 }
 
-BOOL qb_blockWrite(HAND qb,void *buf,int len)
+int qb_blockWrite(HAND qb,void *buf,int len)
 { //Ïò¶ÓÁĞÖĞĞ´ÈëÖ¸¶¨³¤¶ÈÇÒµØÖ·Á¬ĞøµÄÄÚÈİ¡£¶ÓÁĞÎ²²¿²»×ãµÄ¿Õ¼ä½«±»Ìø¹ı¡£
   //·µ»ØÊµ¼ÊĞ´ÈëµÄ³¤¶È£¬ÒªÃ´µÈÓÚlen£¬ÒªÃ´Îª0;
   //ÔÊĞíbufÎª¿Õ£¬±íÊ¾Ö»¸Ä±äĞ´Ö¸Õë£»
@@ -670,9 +653,8 @@ BOOL qb_blockWrite(HAND qb,void *buf,int len)
 //---------------------------------------------------------------------------
 //TMailBox
 //---------------------------------------------------------------------------
-
 typedef struct{HAND qb,_msg_mutex,_msg_sem;}TcmMailBox;
-typedef struct{int msgLen;/*char msgData[0];*/}TcmMailMsg;
+typedef struct{int msgLen;char msgData[0];}TcmMailMsg;
 static TcmMailBox  *g_mailBox=NULL;//Ä¿Ç°×Ü¹²Ö»ÉèÖÃÁËÒ»¸öÓÊÏä
 
 void mb_create(int queue_size)
@@ -692,14 +674,6 @@ void mb_destroy(void)
     free(g_mailBox);
     g_mailBox=NULL;
   }
-}
-
-void mb_clear(void){
-   if(g_mailBox){
-      os_obtainSemphore(g_mailBox->_msg_mutex);
-      qb_clear(g_mailBox->qb);
-      os_releaseSemphore(g_mailBox->_msg_mutex);
-   }
 }
 
 int  mb_post(void *msgData,int dataLen)//·¢ËÍÒ»ÌõÓÊÏäÏûÏ¢
@@ -722,28 +696,6 @@ int  mb_post(void *msgData,int dataLen)//·¢ËÍÒ»ÌõÓÊÏäÏûÏ¢
   return 0;
 }
 
-int mb_post2(void *msgHead,int headLen,void *msgData,int dataLen){ //·¢ËÍÒ»ÌõÓÊÏäÏûÏ¢
-  if((headLen>0 && msgHead)||(dataLen>0 && msgData)){
-    int packet_size=sizeof(TcmMailMsg)+headLen+dataLen;
-    os_obtainSemphore(g_mailBox->_msg_mutex);
-    if(qb_freeSize(g_mailBox->qb)>=packet_size)
-    { TcmMailMsg mb_msg;
-      mb_msg.msgLen=headLen+dataLen;
-      qb_write(g_mailBox->qb,&mb_msg,sizeof(TcmMailMsg));
-      if(headLen>0 && msgHead)qb_write(g_mailBox->qb,msgHead,headLen);
-      if(dataLen>0 && msgData)qb_write(g_mailBox->qb,msgData,dataLen);
-      os_releaseSemphore(g_mailBox->_msg_mutex);
-      os_releaseSemphore(g_mailBox->_msg_sem);
-      return dataLen;
-    }
-    else
-    { os_releaseSemphore(g_mailBox->_msg_mutex);
-    }
-  }
-  return 0;
-}
-
-
 int  mb_receive(void *msgBuf,int bufSize)//¶ÁÈ¡Ò»ÌõÓÊÏäÏûÏ¢
 { int got_msg_size=0;
   os_obtainSemphore(g_mailBox->_msg_sem);
@@ -764,166 +716,6 @@ int  mb_receive(void *msgBuf,int bufSize)//¶ÁÈ¡Ò»ÌõÓÊÏäÏûÏ¢
 //---------------------------------------------------------------------------
 // Other api
 //---------------------------------------------------------------------------
-U8 mem_XOR(void *data,int dataLen){
-  U8 ret=0;
-  while(dataLen){
-    ret^=*(U8 *)data;
-    data=(U8 *)data+1;
-    dataLen--;
-  }
-  return ret;
-}
-#if 1  //²é±í·¨¼ÆËãCRC8(°´Éú³É¶àÏîÊ½X8+X5+X4+1)
-static U8 CRC8_LOOKUP[] = {
-0x00,0x5E,0xBC,0xE2,0x61,0x3F,0xDD,0x83,0xC2,0x9C,0x7E,0x20,0xA3,0xFD,0x1F,0x41,
-0x9D,0xC3,0x21,0x7F,0xFC,0xA2,0x40,0x1E,0x5F,0x01,0xE3,0xBD,0x3E,0x60,0x82,0xDC,
-0x23,0x7D,0x9F,0xC1,0x42,0x1C,0xFE,0xA0,0xE1,0xBF,0x5D,0x03,0x80,0xDE,0x3C,0x62,
-0xBE,0xE0,0x02,0x5C,0xDF,0x81,0x63,0x3D,0x7C,0x22,0xC0,0x9E,0x1D,0x43,0xA1,0xFF,
-0x46,0x18,0xFA,0xA4,0x27,0x79,0x9B,0xC5,0x84,0xDA,0x38,0x66,0xE5,0xBB,0x59,0x07,
-0xDB,0x85,0x67,0x39,0xBA,0xE4,0x06,0x58,0x19,0x47,0xA5,0xFB,0x78,0x26,0xC4,0x9A,
-0x65,0x3B,0xD9,0x87,0x04,0x5A,0xB8,0xE6,0xA7,0xF9,0x1B,0x45,0xC6,0x98,0x7A,0x24,
-0xF8,0xA6,0x44,0x1A,0x99,0xC7,0x25,0x7B,0x3A,0x64,0x86,0xD8,0x5B,0x05,0xE7,0xB9,
-0x8C,0xD2,0x30,0x6E,0xED,0xB3,0x51,0x0F,0x4E,0x10,0xF2,0xAC,0x2F,0x71,0x93,0xCD,
-0x11,0x4F,0xAD,0xF3,0x70,0x2E,0xCC,0x92,0xD3,0x8D,0x6F,0x31,0xB2,0xEC,0x0E,0x50,
-0xAF,0xF1,0x13,0x4D,0xCE,0x90,0x72,0x2C,0x6D,0x33,0xD1,0x8F,0x0C,0x52,0xB0,0xEE,
-0x32,0x6C,0x8E,0xD0,0x53,0x0D,0xEF,0xB1,0xF0,0xAE,0x4C,0x12,0x91,0xCF,0x2D,0x73,
-0xCA,0x94,0x76,0x28,0xAB,0xF5,0x17,0x49,0x08,0x56,0xB4,0xEA,0x69,0x37,0xD5,0x8B,
-0x57,0x09,0xEB,0xB5,0x36,0x68,0x8A,0xD4,0x95,0xCB,0x29,0x77,0xF4,0xAA,0x48,0x16,
-0xE9,0xB7,0x55,0x0B,0x88,0xD6,0x34,0x6A,0x2B,0x75,0x97,0xC9,0x4A,0x14,0xF6,0xA8,
-0x74,0x2A,0xC8,0x96,0x15,0x4B,0xA9,0xF7,0xB6,0xE8,0x0A,0x54,0xD7,0x89,0x6B,0x35};
-//¼ÆËãCRC8(8Î»Ñ­»·ÈßÓàÂë£©£¬CRC8¿ÉÒÔ¶Ô³¤¶ÈÎª2^8bit(32Byte)³¤µÄÊı¾İ100%¼ì´í¡£
-U8 mem_CRC8(void *data,int dataLen){//²é±í·¨
-   U8 ret = 0;
-   while(dataLen){
-     ret = CRC8_LOOKUP[ret^(*(U8 *)data)];
-     data=(U8 *)data+1;
-     dataLen--;
-   }
-   return ret;
-}
-#else  //Ö±½Ó¼ÆËãCRC8 (Éú³É¶àÏîÊ½X8+X5+X4+1)
-U8 mem_CRC8_2(void *data,int dataLen){
-  U8 i,ret=0;
-  while(dataLen){
-    ret ^= *(U8 *)data;
-    data=(U8 *)data+1;
-    dataLen--;
-    for(i=0;i<8;i++){
-      ret=(ret&0x01)?(ret>>1)^0x8C:ret>>1;
-    }
-  }
-  return ret;
-}
-#endif
-
-//¼ÆËãCRC16(16Î»Ñ­»·ÈßÓàÂë£©£¬CRC16¿ÉÒÔ¶Ô³¤¶ÈÎª2^16bit(8KByte)³¤µÄÊı¾İ100%¼ì´í¡£
-//²»Í¬µÄÉú³É¶àÏîÊ½¼°±ÈÌØË³Ğò¶¼»áÓĞ²»Í¬µÄCRC¼ÆËã½á¹û£¬ÕâÀï°´MODBUSĞ­ÒéµÄCRC16ÎªÀı¡£
-static U8 CRC16_LOOKUP_HI[]={//CRC¸ßÎ»×Ö½ÚÖµLookupTable
-0x00,0xC1,0x81,0x40,0x01,0xC0,0x80,0x41,0x01,0xC0,0x80,0x41,0x00,0xC1,0x81,0x40,
-0x01,0xC0,0x80,0x41,0x00,0xC1,0x81,0x40,0x00,0xC1,0x81,0x40,0x01,0xC0,0x80,0x41,
-0x01,0xC0,0x80,0x41,0x00,0xC1,0x81,0x40,0x00,0xC1,0x81,0x40,0x01,0xC0,0x80,0x41,
-0x00,0xC1,0x81,0x40,0x01,0xC0,0x80,0x41,0x01,0xC0,0x80,0x41,0x00,0xC1,0x81,0x40,
-0x01,0xC0,0x80,0x41,0x00,0xC1,0x81,0x40,0x00,0xC1,0x81,0x40,0x01,0xC0,0x80,0x41,
-0x00,0xC1,0x81,0x40,0x01,0xC0,0x80,0x41,0x01,0xC0,0x80,0x41,0x00,0xC1,0x81,0x40,
-0x00,0xC1,0x81,0x40,0x01,0xC0,0x80,0x41,0x01,0xC0,0x80,0x41,0x00,0xC1,0x81,0x40,
-0x01,0xC0,0x80,0x41,0x00,0xC1,0x81,0x40,0x00,0xC1,0x81,0x40,0x01,0xC0,0x80,0x41,
-0x01,0xC0,0x80,0x41,0x00,0xC1,0x81,0x40,0x00,0xC1,0x81,0x40,0x01,0xC0,0x80,0x41,
-0x00,0xC1,0x81,0x40,0x01,0xC0,0x80,0x41,0x01,0xC0,0x80,0x41,0x00,0xC1,0x81,0x40,
-0x00,0xC1,0x81,0x40,0x01,0xC0,0x80,0x41,0x01,0xC0,0x80,0x41,0x00,0xC1,0x81,0x40,
-0x01,0xC0,0x80,0x41,0x00,0xC1,0x81,0x40,0x00,0xC1,0x81,0x40,0x01,0xC0,0x80,0x41,
-0x00,0xC1,0x81,0x40,0x01,0xC0,0x80,0x41,0x01,0xC0,0x80,0x41,0x00,0xC1,0x81,0x40,
-0x01,0xC0,0x80,0x41,0x00,0xC1,0x81,0x40,0x00,0xC1,0x81,0x40,0x01,0xC0,0x80,0x41,
-0x01,0xC0,0x80,0x41,0x00,0xC1,0x81,0x40,0x00,0xC1,0x81,0x40,0x01,0xC0,0x80,0x41,
-0x00,0xC1,0x81,0x40,0x01,0xC0,0x80,0x41,0x01,0xC0,0x80,0x41,0x00,0xC1,0x81,0x40};
-static U8 CRC16_LOOKUP_LO[]={//CRCµÍÎ»×Ö½ÚÖµLookupTable
-0x00,0xC0,0xC1,0x01,0xC3,0x03,0x02,0xC2,0xC6,0x06,0x07,0xC7,0x05,0xC5,0xC4,0x04,
-0xCC,0x0C,0x0D,0xCD,0x0F,0xCF,0xCE,0x0E,0x0A,0xCA,0xCB,0x0B,0xC9,0x09,0x08,0xC8,
-0xD8,0x18,0x19,0xD9,0x1B,0xDB,0xDA,0x1A,0x1E,0xDE,0xDF,0x1F,0xDD,0x1D,0x1C,0xDC,
-0x14,0xD4,0xD5,0x15,0xD7,0x17,0x16,0xD6,0xD2,0x12,0x13,0xD3,0x11,0xD1,0xD0,0x10,
-0xF0,0x30,0x31,0xF1,0x33,0xF3,0xF2,0x32,0x36,0xF6,0xF7,0x37,0xF5,0x35,0x34,0xF4,
-0x3C,0xFC,0xFD,0x3D,0xFF,0x3F,0x3E,0xFE,0xFA,0x3A,0x3B,0xFB,0x39,0xF9,0xF8,0x38,
-0x28,0xE8,0xE9,0x29,0xEB,0x2B,0x2A,0xEA,0xEE,0x2E,0x2F,0xEF,0x2D,0xED,0xEC,0x2C,
-0xE4,0x24,0x25,0xE5,0x27,0xE7,0xE6,0x26,0x22,0xE2,0xE3,0x23,0xE1,0x21,0x20,0xE0,
-0xA0,0x60,0x61,0xA1,0x63,0xA3,0xA2,0x62,0x66,0xA6,0xA7,0x67,0xA5,0x65,0x64,0xA4,
-0x6C,0xAC,0xAD,0x6D,0xAF,0x6F,0x6E,0xAE,0xAA,0x6A,0x6B,0xAB,0x69,0xA9,0xA8,0x68,
-0x78,0xB8,0xB9,0x79,0xBB,0x7B,0x7A,0xBA,0xBE,0x7E,0x7F,0xBF,0x7D,0xBD,0xBC,0x7C,
-0xB4,0x74,0x75,0xB5,0x77,0xB7,0xB6,0x76,0x72,0xB2,0xB3,0x73,0xB1,0x71,0x70,0xB0,
-0x50,0x90,0x91,0x51,0x93,0x53,0x52,0x92,0x96,0x56,0x57,0x97,0x55,0x95,0x94,0x54,
-0x9C,0x5C,0x5D,0x9D,0x5F,0x9F,0x9E,0x5E,0x5A,0x9A,0x9B,0x5B,0x99,0x59,0x58,0x98,
-0x88,0x48,0x49,0x89,0x4B,0x8B,0x8A,0x4A,0x4E,0x8E,0x8F,0x4F,0x8D,0x4D,0x4C,0x8C,
-0x44,0x84,0x85,0x45,0x87,0x47,0x46,0x86,0x82,0x42,0x43,0x83,0x41,0x81,0x80,0x40};
-U16 mem_CRC16_modbus(void *data,int dataLen)
-{ U8 uchCRCHi=0xFF,uchCRCLo=0xFF; //CRC¸ßÎ»¼°µÍÎ»×Ö½Ú³õÊ¼»¯
-  unsigned uIndex;
-  while (dataLen--){
-    uIndex = uchCRCHi ^ (*(U8 *)data);
-    data=(U8 *)data+1;
-    uchCRCHi = uchCRCLo ^ CRC16_LOOKUP_HI[uIndex];
-    uchCRCLo = CRC16_LOOKUP_LO[uIndex];
-  }
-  return (uchCRCLo << 8 | uchCRCHi);  //CRC16 for modbus ÒªÇó¸ßµÍ×Ö½Ú½»»» 
-}
-
-static U32 md5_k[64] ={
-0xd76aa478, 0xe8c7b756, 0x242070db, 0xc1bdceee, 0xf57c0faf, 0x4787c62a, 0xa8304613, 0xfd469501,
-0x698098d8, 0x8b44f7af, 0xffff5bb1, 0x895cd7be, 0x6b901122, 0xfd987193, 0xa679438e, 0x49b40821,
-0xf61e2562, 0xc040b340, 0x265e5a51, 0xe9b6c7aa, 0xd62f105d, 0x02441453, 0xd8a1e681, 0xe7d3fbc8,
-0x21e1cde6, 0xc33707d6, 0xf4d50d87, 0x455a14ed, 0xa9e3e905, 0xfcefa3f8, 0x676f02d9, 0x8d2a4c8a,
-0xfffa3942, 0x8771f681, 0x6d9d6122, 0xfde5380c, 0xa4beea44, 0x4bdecfa9, 0xf6bb4b60, 0xbebfbc70,
-0x289b7ec6, 0xeaa127fa, 0xd4ef3085, 0x04881d05, 0xd9d4d039, 0xe6db99e5, 0x1fa27cf8, 0xc4ac5665,
-0xf4292244, 0x432aff97, 0xab9423a7, 0xfc93a039, 0x655b59c3, 0x8f0ccc92, 0xffeff47d, 0x85845dd1,
-0x6fa87e4f, 0xfe2ce6e0, 0xa3014314, 0x4e0811a1, 0xf7537e82, 0xbd3af235, 0x2ad7d2bb, 0xeb86d391};
-static int md5_s[64]={7,12,17,22,7,12,17,22,7,12,17,22,7,12,17,22,5,9,14,20,5,9,14,20,5,9,14,20,
-5,9,14,20,4,11,16,23,4,11,16,23,4,11,16,23,4,11,16,23,6,10,15,21,6,10,15,21,6,10,15,21,6,10,15,21};
-//¼ÆËã16Î»MD5Âë£¨±àÂëºóÎª16×Ö½Ú¶ş½øÖÆÊı¾İ£¬¿ÉÒÔ½øÒ»²½×ª»»Îª32Î»16½øÖÆ×Ö·û´®£©¡£
-void  mem_MD5(void* data,int dataLen,U8 ret[16]){
-  static unsigned char MD5_AppendBuffer[128];
-  U32 MD5_h[4]={0x67452301,0xefcdab89,0x98badcfe,0x10325476};
-  int i,j;
-  if(data && dataLen>0){//MD5_Fill(data,dataLen)
-     U32 bit_size=dataLen<<3;
-     int appendlen=dataLen&0x3f;
-     //Èç¹ûÊı¾İ³¤¶ÈÎª64µÄÕûÊı±¶£¬¾Í²»±Ø°áÎ²²¿Êı¾İ£¬´Ó¶ø¿ÉÒÔÌá¸ßÔËĞĞĞ§ÂÊ
-     if(appendlen) memcpy(MD5_AppendBuffer,(char *)data+dataLen-appendlen,appendlen);
-     MD5_AppendBuffer[appendlen++]=0x80;
-     i=(appendlen<=56)?56-appendlen:120-appendlen;
-     if(i){
-       memset(&MD5_AppendBuffer[appendlen],0,i);
-       appendlen+=i;
-     }
-     for(i=appendlen+8; appendlen<i; appendlen++){
-       MD5_AppendBuffer[appendlen] = (char)bit_size;
-       bit_size >>= 8;
-     }
-  }else return;
-  for(j=0;j<2;j++){
-    int ii,jj,block;
-    if(j==0) block=dataLen>>6;
-    else{block=((dataLen&0x3f)<=55)?1:2;data=MD5_AppendBuffer;}
-    for(i=0;i<block;i++){
-      U32 MD5_MM[16],AA=MD5_h[0],BB=MD5_h[1],CC=MD5_h[2],DD=MD5_h[3];
-      U8 *pos=(unsigned char *)data+(i<<6);
-      for(ii=0; ii < 16; ii++,pos+=4){//MD5_GetM(data, MD5_MM, i<<6);
-        for(jj=3;jj>=0;jj--) MD5_MM[ii]=(MD5_MM[ii]<<8)| pos[jj];
-      }
-      for(jj = 0; jj < 64; jj ++){
-        U32 temp1,temp2;
-        if(jj<16){temp1=(BB&CC)|((~BB)&DD);temp2=jj;}
-        else if(jj<32){temp1=(DD&BB)|((~DD)&CC);temp2=(5*jj+1)%16;}
-        else if(jj<48){temp1=BB^CC^DD;temp2 = (3*jj + 5)%16;}
-        else{temp1=CC^(BB|(~DD));temp2=(7*jj)%16;}
-        temp1=AA + temp1 + MD5_MM[temp2] + md5_k[jj];
-        temp2=DD;DD=CC;CC=BB;AA=temp2;
-        BB += ((temp1<<md5_s[jj])|(temp1>>(32-md5_s[jj])));
-      }
-      MD5_h[0]+=AA;MD5_h[1]+=BB;MD5_h[2]+=CC;MD5_h[3]+=DD;
-    }
-  }
-  for(i=0; i<4; i++){
-    for(j=0; j<4; j++)ret[(i<<2)+j]=(U8)(MD5_h[i]>>(j<<3));
-  }
-}
-
 // BKDR Hash Function
 U32 BKDRHash(char *str)
 { U32 hash = 0,seed = 131; // 31 131 1313 13131 131313 etc..
@@ -936,18 +728,8 @@ U32 BKDRHash(char *str)
 // TDateTimer
 //---------------------------------------------------------------------------
 #define DTMR_MAGIC_NUMBER      0x44544D52U//DTMR
-#define DTMR_NODE_NAME(node)   ((char *)node->ExtraData+node->nameOffset)
-/*
- * DTMRÖĞÁ½¸öËøµÄ·Ö¹¤£º
- * È«¾ÖËø£º¸ºÔğÈ«¾ÖÊÂÎñ£¬°üÀ¨½ÚµãµÄ´´½¨ÒÔ¼°½ÚµãµÄÏµÍ³ÊôĞÔ¼°×´Ì¬µÄĞŞ¸Ä
- * ½ÚµãËø : ¸ºÔğ½ÚµãµÄÓÃ»§Êı¾İ£¨¼´ExtraData£©
- * Lock×´Ì¬µÄ½Úµã½«±»hold×¡²»ÔÊĞí³¬Ê±
- * ½ÚµãÉ¾³ı²Ù×÷·ÖÁ½¸ö²½óE£¨½×¶Î£©£¬µÚÒ»²½£ºÇå¿ÕID¼°name£¬KßMÈë•régİSµÈ´ı°²È«³¬•r£»µÚ¶ş²½£º°²È«³¬•rºó£¬½«½ÚµãÒÆ³ö×ÊÔ´æœ±íKÏú»Ù½Úµã×ÊÔ´
- * ˆÌĞĞÉ¾³ı²Ù×÷µÄµÚÒ»²½óE•r£º±ØíšÈ¡µÃÈ«¾ÖËøÒÔ¼°½ÚµãËø£¬¶øÔÚµÚ¶ş²½óEÖ»ÒªÈ¡µÃÈ«¾ÖËø¼´¿É¡£
- * ËäÈ»É¾³ı²Ù×÷µÄµÚÒ»²½óEÃ»ÓĞÕæÕıĞŞ¸Ä½ÚµãµÄExtraData£¬µ«ÊÇÊµ¼ÊÏóÕ÷ÒâÒå¾ÍÊÇÉ¾³ıExtraData£¬ËùÒÔÒª¼Ó½ÚµãËø¡£
- * Disable½Úµã²Ù×÷Ö»ÒªÈ¡µÃÈ«¾ÖËø£¬²»ĞèÒªÈ¡µÃ½ÚµãËø¡£¡¡
- */
-typedef struct _TDateTimerNode  TDateTimerNode;
+#define DTMR_LIFE_MASK         0x0FFFFFFFU
+typedef struct t_datatimer_node  TDateTimerNode;
 typedef struct
 { DTMR_TimeoutEvent OnTimeout;
   TDateTimerNode *_tsklist;//dummy
@@ -956,17 +738,16 @@ typedef struct
   HAND _timer_check_thread,_task_mutex,_sem_timer;
 }TDateTimer;
 
-struct _TDateTimerNode
+struct t_datatimer_node
 { TDateTimerNode *up,*down,*prev,*next;//Ë³Ğò²»Òª±ä
   TDateTimer *dtimer;
-  HAND semlock;
-  U32 mode,msLifeTime,msTimeOut,hashIndex,extraSize,nameOffset,nodeID[2];
-  U8 ExtraData[1];//&ExtraData[nameOffset]ºóÃæÊÇnodeName×Ö·û´®£¬µ«Æä³¤¶È²»¼ÆÔÚextraSizeÖĞ(extraSize<=nameOffset)£¬²¢Ô¤·ÖÅäÒ»¸ö×Ö·û´®½áÊø·û¡£
+  U32 states,overrideCount,hashIndex,msTimeOut,extraSize,extraAlloc,nodeID[2];
+  U8 ExtraData[0];//&ExtraData[extraSize]ºóÃæÊÇnodeName×Ö·û´®£¬µ«Æä³¤¶È²»¼ÆÔÚextraSizeÖĞ¡£
 };
 
-static void _DTMR_UpdateTimeout(TDateTimer *ttasks,TDateTimerNode *node,U32 msLifeTime)
+static void _DTMR_UpdateTimeout(TDateTimer *ttasks,TDateTimerNode *node,U32 sLifeTime)
 { TDateTimerNode *listhead=ttasks->_tsklist;
-  U32 msTimeOut=(msLifeTime)?(os_msRunTime()+msLifeTime):0;
+  U32 msTimeOut=(sLifeTime)?(os_msRunTime()+sLifeTime*1000):0;
   node->msTimeOut=msTimeOut;
   if(node==listhead->next && (node->next==listhead || msTimeOut<=node->next->msTimeOut))
   { //±¾Éí¾ÍÔÚ±íÍ·£¬ÇÒÊ±¼äÅÅĞò²»ÓÃµ÷Õû¡£
@@ -974,7 +755,7 @@ static void _DTMR_UpdateTimeout(TDateTimer *ttasks,TDateTimerNode *node,U32 msLi
   }
   else
   { //´ÓÊ±¼äÖáÁ´±íÖĞÉ¾³ı
-    if(node!=node->next) BINODE_REMOVE(node,prev,next);
+    BINODE_REMOVE(node,prev,next);
 
     //ÖØĞÂ²åÈëºáÏò»·ĞÎË«ÏòÁ´±í£¨°´Ê±¼äÅÅÁĞ£©
     if(msTimeOut<=listhead->next->msTimeOut)
@@ -991,163 +772,109 @@ static void _DTMR_UpdateTimeout(TDateTimer *ttasks,TDateTimerNode *node,U32 msLi
   }
 }
 
-#define  dtmr_node_match_id_name (node->nodeID[0]==nodeIDL && node->nodeID[1]==nodeIDH &&(!nodeName||strcmp(nodeName,DTMR_NODE_NAME(node))==0))
-#define  dtmr_node_match_name    (strcmp(nodeName,DTMR_NODE_NAME(node))==0)
-#define  dtmr_node_match_id_data (node->nodeID[0]==nodeIDL && node->nodeID[1]==nodeIDH &&(!nodeData||memcmp(nodeData,(char *)node->ExtraData+dataOffset,dataSize)==0))
-#define  dtmr_node_match_data    (memcmp(nodeData,(char *)node->ExtraData+dataOffset,dataSize)==0 && (node->nodeID[0] || node->nodeID[1] || node->ExtraData[node->extraSize]))
-#define _DTMR_MarkToDelete(tskNode){\
-    tskNode->nodeID[0]=0;\
-    tskNode->nodeID[1]=0;\
-    (DTMR_NODE_NAME(tskNode))[0]=0;\
-    _DTMR_UpdateTimeout(tskNode->dtimer,tskNode,tskNode->dtimer->dataProtectTime);\
+static void _DTMR_DeleteTask(TDateTimerNode *tskNode)
+{  tskNode->nodeID[0]=0;
+   tskNode->nodeID[1]=0;//taskID¼°nodeNameÉ¾³ıºó²»»á´¥·¢³¬Ê±»Øµ÷º¯Êı
+   tskNode->ExtraData[tskNode->extraSize]='\0';
+   tskNode->states=0;//Çå³ş×´Ì¬¡¢½â³ıËø¶¨
+   _DTMR_UpdateTimeout(tskNode->dtimer,tskNode,tskNode->dtimer->dataProtectTime);
 }
 
-//É¾³ı½Úµã£¨ÕâÀïÖ»ÒªÖ´ĞĞ½ÚµãÉ¾³ı²Ù×÷µÄÁ½¸ö²½ÖèÖĞµÄµÚÒ»²½Öè¼´¿É£º¼´Çå¿ÕID¼°name£¬KßMÈë•régİSµÈ´ı°²È«³¬•r£©
-//ÕâÒ»½×¶Î±ØíšÈ¡µÃÈ«¾ÖËøÒÔ¼°½ÚµãËø¡£
-void  dtmr_delete(void *dnode){
-  if(dnode){
-    TDateTimerNode *tskNode=T_PARENT_NODE(TDateTimerNode,ExtraData,dnode);
-    TDateTimer *dtimer=tskNode->dtimer;
-    if(dtimer && dtimer->magicNumber==DTMR_MAGIC_NUMBER && os_obtainSemphore(tskNode->semlock)){
-       if(os_obtainSemphore(dtimer->_task_mutex)){
-         if(tskNode->nodeID[0]||tskNode->nodeID[1]||(DTMR_NODE_NAME(tskNode))[0]){
-           _DTMR_MarkToDelete(tskNode);//ÑÓÊ±·½Ê½°²È«É¾³ı
-         }
-         os_releaseSemphore(dtimer->_task_mutex);
-       }
-       os_releaseSemphore(tskNode->semlock);
-    }
-  }
-}
-
-void *dtmr_add(HAND dtimer,U32 nodeIDL,U32 nodeIDH,char *nodeName,void *nodeData,U32 dataSize,U32 msLifeTime,U32 *options){
-  label_start:
-  if(dtimer && ((TDateTimer *)dtimer)->magicNumber==DTMR_MAGIC_NUMBER && (nodeIDL||nodeIDH||nodeName) && os_obtainSemphore(((TDateTimer *)dtimer)->_task_mutex)){
-    BOOL gotLocker=FALSE;
-    int nameLen,hashIndex;
+void *dtmr_add(HAND dtimer,U32 nodeIDL,U32 nodeIDH,char *nodeName,void *nodeData,U32 nodeSize,U32 sLifeTime)
+{ if(dtimer && ((TDateTimer *)dtimer)->magicNumber==DTMR_MAGIC_NUMBER && (nodeIDL||nodeIDH||nodeName) && os_obtainSemphore(((TDateTimer *)dtimer)->_task_mutex))
+  { int nameSize,hashIndex;
     TDateTimerNode *header,*node;
-    U32 mode=(options)?*options:0;
     //µ±Í¬Ê±Ö¸¶¨ÓĞĞ§µÄtaskIDÓënodeNameÊ±£¬ÓÅÏÈÍ¨¹ıtaskID½¨Á¢¹şÏ£²éÕÒ±í;
-    if(nodeIDL||nodeIDH){
-      hashIndex=(nodeIDL+nodeIDH)%((TDateTimer *)dtimer)->hashMapLength;
+    if(nodeIDL||nodeIDH)
+    { hashIndex=(nodeIDL+nodeIDH)%((TDateTimer *)dtimer)->hashMapLength;
       header=(TDateTimerNode *)(((TDateTimer *)dtimer)->_hashMapTable+hashIndex);
-      for(node=header->down;node!=header;node=node->down){
-        if(dtmr_node_match_id_name)break;
+      for(node=header->down;node!=header;node=node->down)
+      { if(node->nodeID[0]==nodeIDL && node->nodeID[1]==nodeIDH &&(!nodeName||strcmp(nodeName,(char *)node->ExtraData+node->extraSize)==0))break;
       }
     }
-    else{
-      hashIndex=BKDRHash(nodeName)%((TDateTimer *)dtimer)->hashMapLength;
+    else
+    { hashIndex=BKDRHash(nodeName)%((TDateTimer *)dtimer)->hashMapLength;
       header=(TDateTimerNode *)(((TDateTimer *)dtimer)->_hashMapTable+hashIndex);
-      for(node=header->down;node!=header;node=node->down){
-        if(dtmr_node_match_name)break;
+      for(node=header->down;node!=header;node=node->down)
+      { if(strcmp((char *)node->ExtraData+node->extraSize,nodeName)==0)break;
       }
     }
-    if(node==header){//Ã»ÓĞÕÒµ½Í¬Ãû½ÚµãÔòÖØĞÂ´´½¨½Úµã
-      label_create_new_node:
-      nameLen=(nodeName)?strlen(nodeName):0;//×Ö·û´®µÄ½áÊø·ûºÅ¿Õ¼äÒÑÔÚTDateTimerNode½á¹¹ÌåÖĞÔ¤Áô(ÎŞĞèÔÙ¶îÍâ·ÖÅä)
-      node=(TDateTimerNode *)malloc(sizeof(TDateTimerNode)+dataSize+nameLen);
-      if(!node){
-        puts("[ERROR:dtmr_add]#######################################malloc fail!");
-        exit(0);
-      }
-      if(nodeName)memcpy(&node->ExtraData[dataSize],nodeName,nameLen+1);
-      else node->ExtraData[dataSize]='\0';
-      node->nodeID[0]=nodeIDL;
-      node->nodeID[1]=nodeIDH;
-      node->hashIndex=hashIndex;
-      node->extraSize=node->nameOffset=dataSize;
-      node->dtimer=(TDateTimer *)dtimer;
-
-      os_createSemphore(&node->semlock,(mode&DTMR_LOCK)?0:1); //´´½¨ËøÊ±Í¬Ê±¾ö¶¨ÊÇ·ñ¼ÓËø
-      BINODE_INSERT(node,header,down,up);//²åÈëhashÁ´±íÍ·²¿£¨ÈôÓĞÖØÃûÔòÓÅÏÈËÑË÷Æ¥Åä×îĞÂ½Úµã£©¡£
-      BINODE_ISOLATE(node,prev,next);
-      if(options) *options&=~DTMR_EXIST;//±êÖ¾½ÚµãÊÇ²»´æÔÚµÄĞÂ½¨½Úµã
+    if(node==header)//Ã»ÓĞÕÒµ½Í¬Ãû½ÚµãÔòÖØĞÂ´´½¨½Úµã
+    {  label_create_new_node:
+       nameSize=(nodeName)?strlen(nodeName)+1:1;//º¬×Ö·û´®½áÊø·ûºÅ
+       node=(TDateTimerNode *)malloc(sizeof(TDateTimerNode)+nodeSize+nameSize);
+       if(!node)
+       { puts("[ERROR:dtmr_add]#######################################malloc fail!");
+       	 exit(0);
+       }
+       if(nodeName)memcpy(&node->ExtraData[nodeSize],nodeName,nameSize);
+       else node->ExtraData[nodeSize]='\0';
+       node->nodeID[0]=nodeIDL;
+       node->nodeID[1]=nodeIDH;
+       node->overrideCount=0;	//±íÊ¾µÚÒ»´ÎĞÂ½¨Á¢µÄ½Úµã
+       node->hashIndex=hashIndex;
+       node->extraSize=node->extraAlloc=nodeSize;
+       node->dtimer=(TDateTimer *)dtimer;
+       BINODE_INSERT(node,header,down,up);//²åÈëhashÁ´±íÍ·²¿£¨ÈôÓĞÖØÃûÔòÓÅÏÈËÑË÷Æ¥Åä×îĞÂ½Úµã£©¡£
+       BINODE_INSERT(node,((TDateTimer *)dtimer)->_tsklist,next,prev);//²åÈëÊ±¼äÖáÁ´±íÍ·²¿
     }
-    else{ //Ô­À´¾Í´æÔÚµÄ½Úµã¡£
-      if(options) *options|=DTMR_EXIST;//±êÖ¾½ÚµãÒÑ´æÔÚ
-      //¸²¸Ç´æÔÚµÄ½ÚµãÊ±±ØĞëÈ¡µÃ½ÚµãËø
-      if((mode&DTMR_LOCK)||(mode&DTMR_OVERRIDE)){
-        if(!os_tryObtainSemphore(node->semlock)){
-          os_releaseSemphore(((TDateTimer *)dtimer)->_task_mutex);
-          os_obtainSemphore(node->semlock);
-          os_obtainSemphore(((TDateTimer *)dtimer)->_task_mutex);
-          //ÒÔÏÂÎªÁË·ÀÖ¹ÖĞ¶ÏÆÚ¼ä±»É¾³ı/ĞŞ¸Ä
-          if(((nodeIDL||nodeIDH)&&!dtmr_node_match_id_name)||(!(nodeIDL||nodeIDH)&&!dtmr_node_match_name)){
-            os_releaseSemphore(node->semlock);
-            os_releaseSemphore(((TDateTimer *)dtimer)->_task_mutex);
-            goto label_start;
-          }
-        }
-        gotLocker=TRUE;
+    else //Ô­À´¾Í´æÔÚµÄ½Úµã¡£
+    { if((sLifeTime&DTMR_NOVERRIDE))//²»ÔÊĞí¸²¸ÇÍ¬Ãû½Úµã
+      { os_releaseSemphore(((TDateTimer *)dtimer)->_task_mutex);
+        return NULL;
       }
-      if(mode&DTMR_OVERRIDE){//ÔÊĞí¸²¸ÇÍ¬Ãû½Úµã
-         if(dataSize > node->nameOffset){
-           _DTMR_MarkToDelete(node);
-           os_releaseSemphore(node->semlock);
-           goto label_create_new_node;
+      else //allowOverride:ÕÒµ½Í¬Ãû½ÚµãÔòÖØÖÃÔ­½Úµã
+      {  if(node->extraAlloc<nodeSize)
+         {  _DTMR_DeleteTask(node);
+            goto label_create_new_node;
          }
-         else{
-           node->extraSize=dataSize;
-         }
-      }
-      else{ //Ä¬ÈÏÇé¿öÏÂ£¬²»¸²¸ÇÍ¬Ãû½Úµã£¬²»ĞŞ¸ÄÈÎºÎÊı¾İ¼°ÊôĞÔ£¬Ö±½Ó·µ»ØÒÑ´æÔÚµÄ½Úµã¡£
-        if(mode&DTMR_LOCK)node->mode|=DTMR_LOCK;
-        else os_releaseSemphore(node->semlock);
-        os_releaseSemphore(((TDateTimer *)dtimer)->_task_mutex);
-        return node->ExtraData;
+         else
+         {  node->extraSize=nodeSize;
+         	  node->overrideCount++; //¸²¸Ç¼ÆÊı
+         }	
       }
     }
-    if(dataSize){
-       if(nodeData)memcpy(node->ExtraData,nodeData,dataSize);
-       else memset(node->ExtraData,0,dataSize);//°²È«Æğ¼ûÒªÇåÁã
+    if(node->overrideCount==0 || !(sLifeTime&DTMR_KEEPLIFE))
+    { node->states=sLifeTime;
+      _DTMR_UpdateTimeout((TDateTimer *)dtimer,node,sLifeTime&DTMR_LIFE_MASK);//¸üĞÂ½ÚµãµÄÊÙÃü¼°Ê±¼äÖáÎ»ÖÃ
     }
-    node->mode=mode;
-    node->msLifeTime=msLifeTime;
-    if( (mode&DTMR_ENABLE) && msLifeTime){
-      _DTMR_UpdateTimeout((TDateTimer *)dtimer,node,msLifeTime);//¸üĞÂ½ÚµãµÄÊÙÃü¼°Ê±¼äÖáÎ»ÖÃ
+    else if((sLifeTime&DTMR_LOCK))
+    { node->states|=DTMR_LOCK;
     }
-    else{
-      if(node->next!=node)BINODE_REMOVE(node,next,prev);
-      BINODE_ISOLATE(node,next,prev);
-    }
-    os_releaseSemphore(((TDateTimer *)dtimer)->_task_mutex);
-    if(gotLocker && !(mode&DTMR_LOCK))os_releaseSemphore(node->semlock);
+    if(nodeData && nodeSize)memcpy(node->ExtraData,nodeData,nodeSize);
+    if(!(sLifeTime&DTMR_LOCK))os_releaseSemphore(((TDateTimer *)dtimer)->_task_mutex);
     return node->ExtraData;
   }else return NULL;
 }
 
-void *dtmr_find(HAND dtimer,U32 nodeIDL,U32 nodeIDH,char *nodeName,BOOL addLock){
-  label_start:
-  if(dtimer && ((TDateTimer *)dtimer)->magicNumber==DTMR_MAGIC_NUMBER && os_obtainSemphore(((TDateTimer *)dtimer)->_task_mutex)){
-    TDateTimerNode *header,*node;
-    if(nodeIDL || nodeIDH){
-      int mIndex=(nodeIDL+nodeIDH) % ((TDateTimer *)dtimer)->hashMapLength;
+void *dtmr_find(HAND dtimer,U32 nodeIDL,U32 nodeIDH,char *nodeName,U32 sUpdateLifeTime)
+{ //msUpdateLifeTimeÎª0±íÊ¾²»¸üĞÂ½ÚµãÊÙÃü£¬Îª-1±íÊ¾Ëø¶¨£¨ÔÚµ½ÆÚÊ±×Ô¶¯°´ÃëĞøÊÙ£©£¬ÆäËü±íÊ¾¸üĞÂÎªĞÂµÄÊÙÃü¡£
+  if(dtimer && ((TDateTimer *)dtimer)->magicNumber==DTMR_MAGIC_NUMBER && os_obtainSemphore(((TDateTimer *)dtimer)->_task_mutex))
+  { TDateTimerNode *header,*node;
+    if(nodeIDL || nodeIDH)
+    { int mIndex=(nodeIDL+nodeIDH) % ((TDateTimer *)dtimer)->hashMapLength;
       header=(TDateTimerNode *)(((TDateTimer *)dtimer)->_hashMapTable+mIndex);
-      for(node=header->down;node!=header;node=node->down){
-        if(dtmr_node_match_id_name)goto label_match_node;
+      for(node=header->down;node!=header;node=node->down)
+      { if(node->nodeID[0]==nodeIDL && node->nodeID[1]==nodeIDH &&(!nodeName||strcmp(nodeName,(char *)node->ExtraData+node->extraSize)==0))goto label_DoUpdateTime;
       }
     }
     else if(nodeName)
     { int mIndex=BKDRHash(nodeName)%((TDateTimer *)dtimer)->hashMapLength;
       header=(TDateTimerNode *)(((TDateTimer *)dtimer)->_hashMapTable+mIndex);
       for(node=header->down;node!=header;node=node->down)
-      { if(dtmr_node_match_name)
-      	{ label_match_node:
-          if(addLock){
-            if(!os_tryObtainSemphore(node->semlock)){
-              os_releaseSemphore(((TDateTimer *)dtimer)->_task_mutex);
-              os_obtainSemphore(node->semlock);
-              os_obtainSemphore(((TDateTimer *)dtimer)->_task_mutex);
-              //ÒÔÏÂÎªÁË·ÀÖ¹ÖĞ¶ÏÆÚ¼ä±»É¾³ı
-              if(((nodeIDL||nodeIDH)&&!dtmr_node_match_id_name)||(!(nodeIDL||nodeIDH)&&!dtmr_node_match_name)){
-                os_releaseSemphore(node->semlock);
-                os_releaseSemphore(((TDateTimer *)dtimer)->_task_mutex);
-                goto label_start;
-              }
-            }
-            node->mode|=DTMR_LOCK;
-          }
-          os_releaseSemphore(((TDateTimer *)dtimer)->_task_mutex);
+      { if(strcmp((char *)node->ExtraData+node->extraSize,nodeName)==0)
+      	{ label_DoUpdateTime:
+    	    if(sUpdateLifeTime)
+    	    { U32 sNewLifeTime=sUpdateLifeTime&DTMR_LIFE_MASK;
+    	      if(sNewLifeTime)
+    	      {	_DTMR_UpdateTimeout((TDateTimer *)dtimer,node,sNewLifeTime);
+    	    	  node->states=(node->states&~DTMR_LIFE_MASK)|sNewLifeTime;
+    	      }
+            if((sUpdateLifeTime&DTMR_FOREVER))node->states|=DTMR_FOREVER;
+            if((sUpdateLifeTime&DTMR_LOCK))node->states|=DTMR_LOCK;
+            else os_releaseSemphore(((TDateTimer *)dtimer)->_task_mutex);
+      	  }
+          else os_releaseSemphore(((TDateTimer *)dtimer)->_task_mutex);
       	  return node->ExtraData;
       	}
       }
@@ -1157,99 +884,32 @@ void *dtmr_find(HAND dtimer,U32 nodeIDL,U32 nodeIDH,char *nodeName,BOOL addLock)
   return NULL;
 }
 
-void *dtmr_findByName(HAND dtimer,char *nodeName,BOOL addLock){
-  label_start:
-  if(dtimer && nodeName && ((TDateTimer *)dtimer)->magicNumber==DTMR_MAGIC_NUMBER && os_obtainSemphore(((TDateTimer *)dtimer)->_task_mutex)){
-    TDateTimerNode *header,*node;
-    int mIndex=BKDRHash(nodeName)%((TDateTimer *)dtimer)->hashMapLength;
-    header=(TDateTimerNode *)(((TDateTimer *)dtimer)->_hashMapTable+mIndex);
-    for(node=header->down;node!=header;node=node->down){
-      if(strcmp(nodeName,DTMR_NODE_NAME(node))==0){
-        if(addLock){
-          if(!os_tryObtainSemphore(node->semlock)){
-            os_releaseSemphore(((TDateTimer *)dtimer)->_task_mutex);
-            os_obtainSemphore(node->semlock);
-            os_obtainSemphore(((TDateTimer *)dtimer)->_task_mutex);
-            //ÒÔÏÂÎªÁË·ÀÖ¹ÖĞ¶ÏÆÚ¼ä±»É¾³ı
-            if(strcmp(nodeName,DTMR_NODE_NAME(node))!=0){
-              os_releaseSemphore(node->semlock);
-              os_releaseSemphore(((TDateTimer *)dtimer)->_task_mutex);
-              goto label_start;
-            }
-          }
-          node->mode|=DTMR_LOCK;
-        }
-        os_releaseSemphore(((TDateTimer *)dtimer)->_task_mutex);
-      	return node->ExtraData;
-      }
-    }
-    os_releaseSemphore(((TDateTimer *)dtimer)->_task_mutex);
-  }
-  return NULL;
-}
-
-void *dtmr_findById(HAND dtimer,U32 nodeIDL,U32 nodeIDH,BOOL addLock){
-  label_start:
-  if(dtimer && (nodeIDL || nodeIDH) &&((TDateTimer *)dtimer)->magicNumber==DTMR_MAGIC_NUMBER && os_obtainSemphore(((TDateTimer *)dtimer)->_task_mutex)){
-    TDateTimerNode *header,*node;
-    int mIndex=(nodeIDL+nodeIDH) % ((TDateTimer *)dtimer)->hashMapLength;
-    header=(TDateTimerNode *)(((TDateTimer *)dtimer)->_hashMapTable+mIndex);
-    for(node=header->down;node!=header;node=node->down){
-      if(node->nodeID[0]==nodeIDL && node->nodeID[1]==nodeIDH){
-        if(addLock){
-          if(!os_tryObtainSemphore(node->semlock)){
-            os_releaseSemphore(((TDateTimer *)dtimer)->_task_mutex);
-            os_obtainSemphore(node->semlock);
-            os_obtainSemphore(((TDateTimer *)dtimer)->_task_mutex);
-            //ÒÔÏÂÎªÁË·ÀÖ¹ÖĞ¶ÏÆÚ¼ä±»É¾³ı
-            if(node->nodeID[0]!=nodeIDL || node->nodeID[1]!=nodeIDH){
-              os_releaseSemphore(node->semlock);
-              os_releaseSemphore(((TDateTimer *)dtimer)->_task_mutex);
-              goto label_start;
-            }
-          }
-          node->mode|=DTMR_LOCK;
-        }
-        os_releaseSemphore(((TDateTimer *)dtimer)->_task_mutex);
-        return node->ExtraData;
-      }
-    }
-    os_releaseSemphore(((TDateTimer *)dtimer)->_task_mutex);
-  }
-  return NULL;
-}
-
-void *dtmr_findByData(HAND dtimer,U32 nodeIDL,U32 nodeIDH,void *nodeData,U32 dataSize,int dataOffset,BOOL addLock){
-  label_start:
-  if(dtimer && ((TDateTimer *)dtimer)->magicNumber==DTMR_MAGIC_NUMBER && os_obtainSemphore(((TDateTimer *)dtimer)->_task_mutex))
+void *dtmr_find2(HAND dtimer,U32 nodeIDL,U32 nodeIDH,void *nodeData,U32 nodeSize,int extraOffset,U32 sUpdateLifeTime)
+{  if(dtimer && ((TDateTimer *)dtimer)->magicNumber==DTMR_MAGIC_NUMBER && os_obtainSemphore(((TDateTimer *)dtimer)->_task_mutex))
    { TDateTimerNode *header,*node;
      if(nodeIDL || nodeIDH)
      { int mIndex=(nodeIDL+nodeIDH) % ((TDateTimer *)dtimer)->hashMapLength;
        header=(TDateTimerNode *)(((TDateTimer *)dtimer)->_hashMapTable+mIndex);
        for(node=header->down;node!=header;node=node->down)
-       { if(dtmr_node_match_id_data) goto label_match_node;
+       { if(node->nodeID[0]==nodeIDL && node->nodeID[1]==nodeIDH &&(!nodeData||memcmp(nodeData,(char *)node->ExtraData+extraOffset,nodeSize)==0)) goto label_DoUpdateTime;
        }
      }
-     else if(nodeData && dataSize)
+     else if(nodeData && nodeSize)
      { header=((TDateTimer *)dtimer)->_tsklist;
        for(node=header->next;node!=header;node=node->next)
-       { if(dtmr_node_match_data)
-         { label_match_node:
-           if(addLock){
-             if(!os_tryObtainSemphore(node->semlock)){
-               os_releaseSemphore(((TDateTimer *)dtimer)->_task_mutex);
-               os_obtainSemphore(node->semlock);
-               os_obtainSemphore(((TDateTimer *)dtimer)->_task_mutex);
-               //ÒÔÏÂÎªÁË·ÀÖ¹ÖĞ¶ÏÆÚ¼ä±»É¾³ı
-               if(((nodeIDL||nodeIDH)&&!dtmr_node_match_id_data)||(!(nodeIDL||nodeIDH)&&!dtmr_node_match_data)){
-                 os_releaseSemphore(node->semlock);
-                 os_releaseSemphore(((TDateTimer *)dtimer)->_task_mutex);
-                 goto label_start;
-               }
-             }
-             node->mode|=DTMR_LOCK;
-           }
-           os_releaseSemphore(((TDateTimer *)dtimer)->_task_mutex);
+       { if(memcmp(nodeData,(char *)node->ExtraData+extraOffset,nodeSize)==0 && (node->nodeID[0] || node->nodeID[1] || node->ExtraData[node->extraSize]))
+         { label_DoUpdateTime:
+           if(sUpdateLifeTime)
+    	   {   U32 sNewLifeTime=sUpdateLifeTime&DTMR_LIFE_MASK;
+    	       if(sNewLifeTime)
+    	       { _DTMR_UpdateTimeout((TDateTimer *)dtimer,node,sNewLifeTime);
+    	         node->states=(node->states&~DTMR_LIFE_MASK)|sNewLifeTime;
+    	       }
+               if((sUpdateLifeTime&DTMR_FOREVER))node->states|=DTMR_FOREVER;
+               if((sUpdateLifeTime&DTMR_LOCK))node->states|=DTMR_LOCK;
+               else os_releaseSemphore(((TDateTimer *)dtimer)->_task_mutex);
+      	   }
+           else os_releaseSemphore(((TDateTimer *)dtimer)->_task_mutex);
            return node->ExtraData;
          }
        }
@@ -1259,162 +919,104 @@ void *dtmr_findByData(HAND dtimer,U32 nodeIDL,U32 nodeIDH,void *nodeData,U32 dat
    return NULL;
 }
 
-BOOL dtmr_lock(void *dnode){
-  BOOL ret=FALSE;
-  if(dnode){
-    TDateTimerNode *tskNode=T_PARENT_NODE(TDateTimerNode,ExtraData,dnode);
-    TDateTimer *dtimer=tskNode->dtimer;
-    if(dtimer && dtimer->magicNumber==DTMR_MAGIC_NUMBER){
-      if(os_obtainSemphore(tskNode->semlock)){
-        if(os_obtainSemphore(dtimer->_task_mutex)){
-          if((tskNode->nodeID[0] || tskNode->nodeID[1] || (DTMR_NODE_NAME(tskNode))[0])){
-            tskNode->mode|=DTMR_LOCK;
-            ret=TRUE;
-          }
-          else{//½ÚµãÒÑ¾­É¾³ı
-            os_releaseSemphore(tskNode->semlock);
-          }
-          os_releaseSemphore(dtimer->_task_mutex);
-        }
-      }
-    }
-  }
-  return ret;
-}
-
-void dtmr_unlock(void *dnode,U32 msUpdateLifeTime){
-  if(dnode){
-    TDateTimerNode *tskNode=T_PARENT_NODE(TDateTimerNode,ExtraData,dnode);
-    if((tskNode->mode&DTMR_LOCK)){
-      TDateTimer *dtimer=tskNode->dtimer;
-      if(dtimer && dtimer->magicNumber==DTMR_MAGIC_NUMBER){
-        if(os_obtainSemphore(dtimer->_task_mutex)){
-          if(msUpdateLifeTime){
-            tskNode->msLifeTime=msUpdateLifeTime;
-            if(tskNode->mode&DTMR_ENABLE)_DTMR_UpdateTimeout((TDateTimer *)dtimer,tskNode,msUpdateLifeTime);
-          }
-          tskNode->mode&=~DTMR_LOCK;
-          os_releaseSemphore(tskNode->semlock);
-          os_releaseSemphore(dtimer->_task_mutex);
-        }
+void  dtmr_unlock(void *dnode,U32 sUpdateLifeTime)
+{ if(dnode)
+  { TDateTimerNode *tskNode=T_PARENT_NODE(TDateTimerNode,ExtraData,dnode);
+    if((tskNode->states&DTMR_LOCK))
+    { TDateTimer *dtimer=tskNode->dtimer;
+      if(dtimer && dtimer->magicNumber==DTMR_MAGIC_NUMBER)
+      {  if(sUpdateLifeTime)
+         { U32 sNewLifeTime=sUpdateLifeTime&DTMR_LIFE_MASK;
+           if(sNewLifeTime)
+           { _DTMR_UpdateTimeout((TDateTimer *)dtimer,tskNode,sNewLifeTime);
+             tskNode->states=(tskNode->states&~DTMR_LIFE_MASK)|sNewLifeTime;
+           }
+           if((sUpdateLifeTime&DTMR_FOREVER))tskNode->states|=DTMR_FOREVER;
+         }
+         tskNode->states&=~DTMR_LOCK;
+         os_releaseSemphore(dtimer->_task_mutex);
       }
     }
   }
 }
 
-BOOL dtmr_update(void *dnode,U32 msUpdateLifeTime,U32 options){
-  if(dnode)
+void  dtmr_update(void *dnode,U32 sUpdateLifeTime)
+{ if(dnode && sUpdateLifeTime)
+  { TDateTimerNode *tsknode=T_PARENT_NODE(TDateTimerNode,ExtraData,dnode);
+    TDateTimer *dtimer=tsknode->dtimer;
+    if(dtimer && dtimer->magicNumber==DTMR_MAGIC_NUMBER && os_obtainSemphore(dtimer->_task_mutex))
+    { U32 sNewLifeTime=sUpdateLifeTime&DTMR_LIFE_MASK;
+      if(sNewLifeTime)
+      {	_DTMR_UpdateTimeout((TDateTimer *)dtimer,tsknode,sNewLifeTime);
+       	tsknode->states=(tsknode->states&~DTMR_LIFE_MASK)|sNewLifeTime;
+      }
+      if((sUpdateLifeTime&DTMR_FOREVER))tsknode->states|=DTMR_FOREVER;
+      else if((tsknode->states&DTMR_FOREVER))tsknode->states&=~DTMR_FOREVER;;
+      if(!(sUpdateLifeTime&DTMR_LOCK))os_releaseSemphore(dtimer->_task_mutex);
+      else tsknode->states|=DTMR_LOCK;
+    }
+  }
+}
+
+int  dtmr_getSize(void *dnode)
+{ if(dnode)
+  { TDateTimerNode *tsknode=T_PARENT_NODE(TDateTimerNode,ExtraData,dnode);
+    return tsknode->extraSize;
+  }else return 0;	
+}
+  	
+//¸ù¾İTaskCodeµØÖ·É¾³ı½Úµã £¨ÕâÀïÖ»ÊÇÉèÖÃÎª³¬Ê±£¬ºóÃæÓÉ¶¨Ê±Æ÷À´É¾³ı£©
+void  dtmr_remove(void *dnode)
+{ if(dnode)
   { TDateTimerNode *tskNode=T_PARENT_NODE(TDateTimerNode,ExtraData,dnode);
     TDateTimer *dtimer=tskNode->dtimer;
-    if(dtimer && dtimer->magicNumber==DTMR_MAGIC_NUMBER){
-      if((options&DTMR_LOCK) && !os_obtainSemphore(tskNode->semlock))return FALSE;
-      if(os_obtainSemphore(dtimer->_task_mutex)){
-        if((tskNode->nodeID[0] || tskNode->nodeID[1] || (DTMR_NODE_NAME(tskNode))[0])){
-          if(msUpdateLifeTime)tskNode->msLifeTime=msUpdateLifeTime;
-          if((options&DTMR_ENABLE)){
-            if(msUpdateLifeTime ||!(tskNode->mode&DTMR_ENABLE)) _DTMR_UpdateTimeout((TDateTimer *)dtimer,tskNode,tskNode->msLifeTime);
-          }
-          else{
-            if(tskNode->mode&DTMR_ENABLE){
-              BINODE_REMOVE(tskNode,next,prev);
-              BINODE_ISOLATE(tskNode,next,prev);
-            }
-          }
-          tskNode->mode=options;
-        }
-        else{//½ÚµãÒÑ¾­É¾³ı
-          if((options&DTMR_LOCK)) os_releaseSemphore(tskNode->semlock);
-          dnode=NULL; //mark fail for return
-        }
-        os_releaseSemphore(dtimer->_task_mutex);
-        return (dnode)?TRUE:FALSE;
-      }
+    if(dtimer && dtimer->magicNumber==DTMR_MAGIC_NUMBER && os_obtainSemphore(dtimer->_task_mutex))
+    {  _DTMR_DeleteTask(tskNode);
+       os_releaseSemphore(dtimer->_task_mutex);
     }
   }
-  return FALSE;
 }
 
-int dtmr_getSize(void *dnode){
-  if(dnode){
-    TDateTimerNode *tsknode=T_PARENT_NODE(TDateTimerNode,ExtraData,dnode);
-    return tsknode->extraSize;
-  }else return 0;
-}
-
-char *dtmr_getName(void *dnode){
-  if(dnode){
-    TDateTimerNode *tskNode=T_PARENT_NODE(TDateTimerNode,ExtraData,dnode);
-     return DTMR_NODE_NAME(tskNode);
-  }else return NULL;
-}
-
-void dtmr_test(HAND htmr){
-  TDateTimer *dtimer=(TDateTimer *)htmr;
+static void *_DTMR_timer_check_proc(void *param)
+{ TDateTimer *dtimer=(TDateTimer *)param;
   TDateTimerNode *timerlist=dtimer->_tsklist;
-  TDateTimerNode *node;
-  int now_time=os_msRunTime();
-  extern void MemoPrint(const char *format, ...);
-  for(node=timerlist->next;node!=timerlist; node=node->next){
-    printf("ID:%d_%d, mode=%x, dutime=%d, next=%x,pre=%x\r\n",node->nodeID[0],node->nodeID[1],node->mode,(node->msTimeOut-now_time)/1000, (int)node->next,(int)node->prev);
-  }
-}
-
-static void *_DTMR_timer_check_proc(void *param){
-  TDateTimer *dtimer=(TDateTimer *)param;
-  TDateTimerNode *timerlist=dtimer->_tsklist;
-  while(dtimer->_timer_check_thread){
-    TDateTimerNode *dueNode;
+  while(dtimer->_timer_check_thread)
+  { TDateTimerNode *dueNode;
     U32 now_time_ms,msWaitTime;
     if(!os_obtainSemphore(dtimer->_task_mutex))break;
     now_time_ms=os_msRunTime();
-    while((dueNode=timerlist->next)!=timerlist && now_time_ms>=dueNode->msTimeOut){
-      char *nodeName=DTMR_NODE_NAME(dueNode);
-      if((dueNode->nodeID[0] || dueNode->nodeID[1] || nodeName[0])){
-        if(dueNode->mode&DTMR_LOCK){
-          //lock×´Ì¬µÄ½ÚµãÒªhold×¡£¬²»ÔÊĞí³¬Ê±£¨²»¹ÜÊÇ±»Ë­¼ÓµÄËø£©¡£
-          label_postpone_locked_node:
-          _DTMR_UpdateTimeout(dtimer,dueNode,1000);//ÑÓ³¤1ÃëÖÓÔÙËµ¡£
-          continue;
+    while((dueNode=timerlist->next)!=timerlist && now_time_ms>=dueNode->msTimeOut)
+    { char *nodeName=(char *)dueNode->ExtraData+dueNode->extraSize;
+      if(dueNode->nodeID[0] || dueNode->nodeID[1] || nodeName[0])
+      { if((dueNode->states&DTMR_FOREVER))
+        { //Èô¼ÓËø±ê¼ÇÔò¼ÌĞøÑÓ³¤ÊÙÃü
+           _DTMR_UpdateTimeout(dtimer,dueNode,dueNode->states&DTMR_LIFE_MASK);
+       	   //Log_AppendText("Locked_%d node_%x_%x timeout!",dueNode->locked,dueNode->nodeID[0],dueNode->nodeID[1]);
+           continue;
         }
-        if(dtimer->OnTimeout){
-          os_releaseSemphore(dtimer->_task_mutex);
-          dtimer->OnTimeout(dtimer, dueNode->ExtraData,dueNode->nodeID,nodeName);
-          os_obtainSemphore(dtimer->_task_mutex);
-          if(timerlist->next!=dueNode || now_time_ms<dueNode->msTimeOut || !(dueNode->mode&DTMR_ENABLE))continue;
-          else if((dueNode->mode&DTMR_LOCK)) goto label_postpone_locked_node;
+      	else if(dtimer->OnTimeout)
+        {  U32 sUpdateLifeTime=0;
+           os_releaseSemphore(dtimer->_task_mutex);
+           dtimer->OnTimeout(dtimer, dueNode->ExtraData,dueNode->nodeID,nodeName,&sUpdateLifeTime);
+           os_obtainSemphore(dtimer->_task_mutex);
+           if(sUpdateLifeTime)_DTMR_UpdateTimeout(dtimer,dueNode,sUpdateLifeTime&DTMR_LIFE_MASK);
+           if(timerlist->next!=dueNode || now_time_ms<dueNode->msTimeOut)continue;
         }
-        if((dueNode->mode&DTMR_CYCLE)){
-          _DTMR_UpdateTimeout(dtimer,dueNode,dueNode->msLifeTime);
-       	  //Log_AppendText("Locked_%d node_%x_%x timeout!",dueNode->locked,dueNode->nodeID[0],dueNode->nodeID[1]);
-          continue;
-        }
-        if((dueNode->mode&DTMR_TIMEOUT_DELETE)){
-          //Ö´ĞĞÉ¾³ı²Ù×÷µÄÏß³Ì±ØĞëÇ××ÔÈ¡µÃ½ÚµãËø
-          if(os_tryObtainSemphore(dueNode->semlock)){
-            _DTMR_MarkToDelete(dueNode);
-            os_releaseSemphore(dueNode->semlock);
-            continue;
-          }
-          else{
-            //È¡²»µ½½ÚµãËøÔòÑÓ³ÙÉ¾³ı£¨ÏÂ´ÎÔÙÕÒ»ú»á£©
-            goto label_postpone_locked_node;
-          }
-        }
-        else{//Í£Ö¹²Ù×÷²»ÓÃÈ¡µÃ½ÚµãËø
-          dueNode->mode&=~DTMR_ENABLE;
-          BINODE_REMOVE(dueNode,prev,next);//ÒÆ³öÊ±¼äÖáÁ´±í
-          BINODE_ISOLATE(dueNode,prev,next);//¹ÂÁ¢½Úµã
-          continue;
+        if(dtimer->dataProtectTime)
+        {  dueNode->nodeID[0]=0;
+           dueNode->nodeID[1]=0;
+           nodeName[0]=0;
+           _DTMR_UpdateTimeout(dtimer,dueNode,dtimer->dataProtectTime);
+           continue;
         }
       }
-      //²âÊÔÉ¾³ı²¢ÊÍ·ÅÎŞĞ§½Úµã(IDºÍName¶¼Îª¿ÕµÄ½Úµã)
+
       if(dueNode->next)
       { BINODE_REMOVE(dueNode,prev,next);//ÒÆ³öÊ±¼äÖáÁ´±í
         BINODE_REMOVE(dueNode,up,down);//´Ó¹şÏ£Á´±íÖĞÉ¾³ı½Úµã
         dueNode->next=NULL; //add only for debug
       }else puts("###################### Free fail, node alread destroyed£¡");
       //printf("free node:%lu\r\n",(long)dueNode);
-      os_destroySemphore(dueNode->semlock);
       free(dueNode);
     }
     msWaitTime=(dueNode==timerlist)?30000:(dueNode->msTimeOut-now_time_ms);
@@ -1427,7 +1029,7 @@ static void *_DTMR_timer_check_proc(void *param){
   return NULL;
 }
 
-HAND dtmr_create(int hashLen,U32 msHoldTime,DTMR_TimeoutEvent OnTimeout)
+HAND dtmr_create(int hashLen,U32 sHoldTime,DTMR_TimeoutEvent OnTimeout)
 { int c_hashMapLength=(hashLen>0)?hashLen:256;
   int ttask_size=(sizeof(TDateTimer)&0x3)?(sizeof(TDateTimer)|0x03)+1:sizeof(TDateTimer);//address alignment
   int list_binode_size=sizeof(TBinodeLink)*2;
@@ -1437,7 +1039,7 @@ HAND dtmr_create(int hashLen,U32 msHoldTime,DTMR_TimeoutEvent OnTimeout)
   { int i;
     dtimer->magicNumber=DTMR_MAGIC_NUMBER;
     dtimer->OnTimeout=OnTimeout;
-    dtimer->dataProtectTime=(msHoldTime)?msHoldTime:3000;
+    dtimer->dataProtectTime=(sHoldTime)?sHoldTime:3;
     dtimer->hashMapLength=c_hashMapLength;
     dtimer->_tsklist=(TDateTimerNode *)((char *)dtimer+ttask_size);
     BINODE_ISOLATE(dtimer->_tsklist,prev,next);
@@ -1453,15 +1055,28 @@ HAND dtmr_create(int hashLen,U32 msHoldTime,DTMR_TimeoutEvent OnTimeout)
   return (HAND)dtimer;
 }
 
+char *dtmr_getName(void *dnode)
+{  if(dnode)
+   { TDateTimerNode *tskNode=T_PARENT_NODE(TDateTimerNode,ExtraData,dnode);
+     return (char *)tskNode->ExtraData+tskNode->extraSize;
+   }else return NULL;
+}
+
+int dtmr_getOverrideCount(void *dnode)
+{  if(dnode)
+   { TDateTimerNode *tskNode=T_PARENT_NODE(TDateTimerNode,ExtraData,dnode);
+     return (int)tskNode->overrideCount;
+   }else return 0;
+}
+
 void dtmr_destroy(HAND dtimer)
 { if(dtimer && ((TDateTimer *)dtimer)->magicNumber==DTMR_MAGIC_NUMBER && ((TDateTimer *)dtimer)->_timer_check_thread && os_obtainSemphore(((TDateTimer *)dtimer)->_task_mutex))
   { TDateTimerNode *listhead=((TDateTimer *)dtimer)->_tsklist;
     TDateTimerNode *node=listhead->next;
     while(node!=listhead)
     { TDateTimerNode *nextNode=node->next;
-      node->mode=0;
+      node->states=0;
       node->dtimer=NULL;
-      os_destroySemphore(node->semlock);
       free(node);
       node=nextNode;
     }
@@ -1475,9 +1090,6 @@ void dtmr_destroy(HAND dtimer)
 //---------------------------------------------------------------------------
 //TcmSocket
 //---------------------------------------------------------------------------
-#define TCP_CONNECTION_TIMEOUT_S          60    //unit:second
-#define SOCKET_MAX_DGRAMSIZE              1500
-#define SOCKET_MAX_LISTEN                 FD_SETSIZE  //·şÎñÆ÷×î´ó²¢·¢Á¬½ÓÊı£¨²»³¬¹ıFD_SETSIZE,ĞŞ¸ÄFD_SETSIZEÔÚÏµÍ³Í·ÎÄ¼şÖĞ¡££©
 #define SOCKET_INBUFFER_SIZE_DEFAULT      655360U  //should be far larger than SOCKET_MAX_DGRAMSIZE
 
 typedef struct t_tcp_client_socket
@@ -1497,7 +1109,7 @@ typedef struct _t_cmsocket
   HAND _inqueue,_tag;
   U8  _zeroLocalIP,_zeroLocalPort;
   TSocketProtocol _protocol;
-  HAND _socket_recv_thread;
+  HAND _socket_recv_thread,_thread_closed_sem;
   HAND _inqueue_read_mutex,_inqueue_read_sem,_socket_op_mutex;
   int  (*OnRecv)(HAND,TNetAddr *);
   void (*OnClientChange)(HAND,int,BOOL);
@@ -1506,15 +1118,14 @@ typedef struct _t_cmsocket
 
 typedef struct
 { TNetAddr addr;
-  int   datasize;
-//  char  data[0];
+  int   datasize;  
+  char  data[0];
 }TcmPacketHead;
 
-static int _SOCKET_ReceiveToQueue(HAND hSocket,TNetAddr *addr){
-  #define PACKET_DATA_BUFF(packet)  (((char *)packet)+sizeof(TcmPacketHead))
-  int total_received=0,iSocket=addr->socket;
+static int _SOCKET_ReceiveToQueue(HAND hSocket,TNetAddr *addr)
+{ int total_received=0,iSocket=addr->socket;
   os_obtainSemphore(((TcmSocket *)hSocket)->_inqueue_read_mutex);
-  while(1)//ÔÚÕâÀï½«socketÉÏËùÓĞµÄÊı¾İÈ«²¿¶ÁÍê£¬ÒÔ¾¡Á¿±ÜÃâ»Øµ½selectÖĞÈ¥±éÀú¡£
+  while(1)//¿¿¿¿socket¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿select¿¿¿¿¿
   { int block_size1,block_size2;
     TcmPacketHead *packet=(TcmPacketHead *)qb_freeSpace(((TcmSocket *)hSocket)->_inqueue,&block_size1,&block_size2);
     if(block_size1>=SOCKET_MAX_DGRAMSIZE+sizeof(TcmPacketHead))
@@ -1526,17 +1137,17 @@ static int _SOCKET_ReceiveToQueue(HAND hSocket,TNetAddr *addr){
       #endif
       if(((TcmSocket *)hSocket)->_protocol==spUDP)
       { struct sockaddr peerAddr;
-      	int addrLen=sizeof(peerAddr);
-      	//¶ÔÓÚconnectionless socketsÁ¬½Ó£¬Ö»ÄÜÍ¨¹ırecvfromÀ´È¡µÃPeerAddress
-     	  received_bytes=recvfrom(iSocket, PACKET_DATA_BUFF(packet), SOCKET_MAX_DGRAMSIZE, nonblock_flag ,&peerAddr, (os_socklen_t *)&addrLen);
-     	  packet->addr.socket=iSocket;
-     	  packet->addr.ip=((struct sockaddr_in *)&peerAddr)->sin_addr.s_addr;
+        int addrLen=sizeof(peerAddr);
+        //¿¿connectionless sockets¿¿¿¿¿¿¿recvfrom¿¿¿PeerAddress
+          received_bytes=recvfrom(iSocket, packet->data, SOCKET_MAX_DGRAMSIZE, nonblock_flag ,&peerAddr, (os_socklen_t *)&addrLen);
+          packet->addr.socket=iSocket;
+          packet->addr.ip=((struct sockaddr_in *)&peerAddr)->sin_addr.s_addr;
         packet->addr.port=ntohs(((struct sockaddr_in *)&peerAddr)->sin_port);
       }
       else
-      { //¶ÔÓÚconnection-orientedµÄsocketsÁ¬½Ó£¬Ö»ÄÜÍ¨¹ıgetpeernameÀ´È¡µÃPeerAddress
-     	  received_bytes=recv(iSocket,PACKET_DATA_BUFF(packet),SOCKET_MAX_DGRAMSIZE,nonblock_flag);
-     	  packet->addr=*addr;
+      { //¿¿connection-oriented¿sockets¿¿¿¿¿¿¿getpeername¿¿¿PeerAddress
+          received_bytes=recv(iSocket,packet->data,SOCKET_MAX_DGRAMSIZE,nonblock_flag);
+          packet->addr=*addr;
       }
       if(received_bytes>0)
       { packet->datasize=received_bytes;
@@ -1552,7 +1163,7 @@ static int _SOCKET_ReceiveToQueue(HAND hSocket,TNetAddr *addr){
       }else break;
     }
     else if(block_size2>=SOCKET_MAX_DGRAMSIZE+sizeof(TcmPacketHead))
-    { //Èç¹ûÖ»ÊÇ¶ÓÁĞÎ²²¿Ã»ÓĞ×ã¹»µÄÁ¬Ğø¿Õ¼ä£¬Ôò´¦ÀíµôÎ²²¿¿Õ¼ä£¬´Ó¶ÓÁĞÍ·²¿ÔÙĞĞ·ÖÅä¡£
+    { //¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿
       if(block_size1>=sizeof(TcmPacketHead))
       { packet->addr.socket=0;
         packet->datasize=block_size1-sizeof(TcmPacketHead);
@@ -1561,7 +1172,7 @@ static int _SOCKET_ReceiveToQueue(HAND hSocket,TNetAddr *addr){
     }
     else
     { puts("####Socket inqueue is out of space!");
-      break;//¶ÓÁĞºÄ¾¡£¬Ã»ÓĞ×ã¹»µÄ¿Õ¼ä¡£
+      break;//¿¿¿¿¿¿¿¿¿¿¿¿¿
     }
   }
   os_releaseSemphore(((TcmSocket *)hSocket)->_inqueue_read_mutex);
@@ -1570,8 +1181,7 @@ static int _SOCKET_ReceiveToQueue(HAND hSocket,TNetAddr *addr){
 
 void *_SOCKET_RecvProc(void *param)
 { TcmSocket *cmSocket=(TcmSocket *)param;
-  S16 *pSocket=&cmSocket->_localAddr.socket;
-  int maxfd=*pSocket;
+  int maxfd=cmSocket->_localAddr.socket;
   struct timeval waitimeout={15,0};//1seconds
   if(cmSocket->_protocol==spTcpServer)
   { TTcpClients *activeList=&cmSocket->_connections->actives;
@@ -1580,7 +1190,7 @@ void *_SOCKET_RecvProc(void *param)
     fd_set fdset_connects;
     FD_ZERO(&fdset_connects);
     FD_SET(maxfd,&fdset_connects);
-    while(*pSocket)
+    while(cmSocket->_socket_recv_thread)
     { struct timeval wt=waitimeout;
       fd_set read_flags=fdset_connects;
       //selectµÄsocketÎÄ¼ş¼¯ºÏÖĞ£¬²»¹ÜÊÇUDP»òÊÇTCP£¬Ö»ÓĞÒ»¸ösocketµÄÊı¾İÃ»¶ÁÍê¾Í»áÖ±½Ó·µ»Ø¡£
@@ -1607,7 +1217,7 @@ void *_SOCKET_RecvProc(void *param)
                   BINODE_REMOVE(peer,prev,next);
                   BINODE_INSERT(peer,freeList,prev,next);
                   peer=nextnode;
-                  os_closeSocket(sfd);
+                  os_closesocket(sfd);
                   os_releaseSemphore(_client_close_mutex);
                 }
                 if(cmSocket->OnClientChange)cmSocket->OnClientChange(cmSocket,sfd,FALSE);
@@ -1650,7 +1260,7 @@ void *_SOCKET_RecvProc(void *param)
       	else
     	  { printf("max connections arrive!\n");
           send(sClient, "bye", 4, 0);
-          os_closeSocket(sClient);
+          os_closesocket(sClient);
           continue;
     	  }
     	  printf("accepted=%d\r\n",sClient);
@@ -1668,7 +1278,7 @@ void *_SOCKET_RecvProc(void *param)
     peer=activeList->next;
     while(peer!=activeList)
     { TTcpClients *delNode=peer;
-      os_closeSocket(peer->addr.socket);
+      os_closesocket(peer->addr.socket);
       peer=peer->next;
       BINODE_REMOVE(delNode,next,prev)
       BINODE_INSERT(delNode,freeList,next,prev)
@@ -1676,7 +1286,7 @@ void *_SOCKET_RecvProc(void *param)
     BINODE_ISOLATE(activeList,prev,next);
   }
   else
-  { while(*pSocket)
+  { while(cmSocket->_socket_recv_thread)
     { int stat;
       struct timeval wt=waitimeout;
       fd_set read_flags;
@@ -1701,22 +1311,26 @@ void *_SOCKET_RecvProc(void *param)
       }
     }
   }
-
-  if(*pSocket>0){ //·ÇÖ÷¶¯¹Ø±ÕÇé¿ö£¨±»¶Ô·½»òÆäËûÇé¿ö¹Ø±ÕµÄ£©
-    if(cmSocket->OnClose)cmSocket->OnClose(cmSocket);
-    os_closeSocket(*pSocket);
-    *pSocket=0;
+  if(cmSocket->_socket_recv_thread) //ÅĞ¶ÏÊÇ·ñÊÇ¼º·½Ö÷¶¯¹Ø±ÕµÄ
+  { //·ÇÖ÷¶¯¹Ø±ÕÇé¿ö£¨±»¶Ô·½»òÆäËûÇé¿ö¹Ø±ÕµÄ£©
+    os_closesocket(cmSocket->_localAddr.socket);
+    cmSocket->_localAddr.socket=0;
   }
+  else //¼º·½Í¨¹ıSOCKET_Close()Ö÷¶¯¹Ø±ÕµÄÇé¿ö
+  { cmSocket->_localAddr.socket=0;
+    os_releaseSemphore(cmSocket->_thread_closed_sem);
+  }
+  if(cmSocket->OnClose)cmSocket->OnClose(cmSocket);
+
   return NULL;
 }
 
 static BOOL _SOCKET_Switch(TcmSocket *cmSocket,BOOL OnOff)
 { if(!OnOff)
-  { if(cmSocket->_localAddr.socket>0)
-    { if(cmSocket->OnClose)cmSocket->OnClose(cmSocket);
-      os_closeSocket(cmSocket->_localAddr.socket);  //Ö÷¶¯¹Ø±Õ
-      cmSocket->_localAddr.socket=0;
-      os_joinThread(cmSocket->_socket_recv_thread);//µÈ´ı½ÓÊÕÏß³Ì¹Ø±Õ
+  { if(cmSocket->_localAddr.socket>0 && cmSocket->_socket_recv_thread)
+    { cmSocket->_socket_recv_thread=0;//Ö÷¶¯¹Ø±Õ±êÖ¾
+      os_closesocket(cmSocket->_localAddr.socket);
+      os_obtainSemphore(cmSocket->_thread_closed_sem);//µÈ´ı½ÓÊÕÏß³Ì¹Ø±Õ
     }
     return TRUE;
   }
@@ -1741,7 +1355,7 @@ static BOOL _SOCKET_Switch(TcmSocket *cmSocket,BOOL OnOff)
         setsockopt(newSocket,SOL_SOCKET,SO_REUSEADDR,(const char *)&values,sizeof(int));
       }*/
       saddr.sin_family = AF_INET;
-      saddr.sin_addr.s_addr =(cmSocket->_zeroLocalIP)?SOCKET_HostIP(NULL):cmSocket->_localAddr.ip;
+      saddr.sin_addr.s_addr =(cmSocket->_zeroLocalIP)?SOCKET_IPatoi(NULL):cmSocket->_localAddr.ip;
       saddr.sin_port = (cmSocket->_zeroLocalPort)?0:htons(cmSocket->_localAddr.port);
       memset(&saddr.sin_zero,0,8);
 
@@ -1770,7 +1384,7 @@ static BOOL _SOCKET_Switch(TcmSocket *cmSocket,BOOL OnOff)
         os_createThread(&cmSocket->_socket_recv_thread,_SOCKET_RecvProc,cmSocket);
       }
       else
-      { os_closeSocket(newSocket);
+      { os_closesocket(newSocket);
         newSocket=0;
       }
     }
@@ -1841,6 +1455,7 @@ HAND SOCKET_Create(TSocketProtocol protocol,int inBufSzie)
     os_createSemphore(&newsocket->_inqueue_read_sem,0);
     os_createSemphore(&newsocket->_inqueue_read_mutex,1);
     os_createSemphore(&newsocket->_socket_op_mutex,1);
+    os_createSemphore(&newsocket->_thread_closed_sem,0);
   }
   return newsocket;
 }
@@ -1878,8 +1493,23 @@ void SOCKET_Destroy(HAND hSocket)
     if(cmSocket->_inqueue)qb_destroy(cmSocket->_inqueue);
     os_destroySemphore(cmSocket->_inqueue_read_mutex);
     os_destroySemphore(cmSocket->_inqueue_read_sem);
+    os_destroySemphore(cmSocket->_thread_closed_sem);
     os_destroySemphore(cmSocket->_socket_op_mutex);
   }
+}
+
+int SOCKET_Send(HAND hSocket,void *pData, U32 dataLen)
+{ //Ö´ĞĞsendº¯ÊıÖ»ÊÇ½«Êı¾İ·ÅÈëĞ­ÒéÕ»µÄ·¢ËÍ»º³åÇø£¬²»»áÕæÕıÖ´ĞĞ·¢ËÍ¶¯×÷¡£
+  //Èç¹ûµ÷ÓÃsend·¢ËÍËÍ¾İµÄ³¤¶È(dataLen)Ğ¡ÓÚµÈÓÚ·¢ËÍ»º³åÇøµÄÊ£Óà¿Õ¼ä´ó(freeLen),Ôò·µ»ØÊµ¼Ê·ÅÈë·¢ËÍ»ººÍ³åÇøµÄ×Ö½ÚÊı(dataLen)£¬´ËÊ±²»Éæ¼°×èÈû»ò·Ç×èÈûÄ£Ê½¡£
+  //Èç¹ûµ÷ÓÃsend·¢ËÍËÍ¾İµÄ³¤¶È(dataLen)´óÓÚ·¢ËÍ»º³åÇøµÄÊ£Óà¿Õ¼ä´ó(freeLen),ÔÚ·Ç×èÈûÄ£Ê½ÏÂ£¬Ôò·µ»ØÊµ¼Ê·ÅÈë·¢ËÍ»ººÍ³åÇøµÄ×Ö½ÚÊı(freeLen)£»ÔÚ×èÈûÄ£Ê½ÏÂ»á×Ô¶¯·ÖÅú½«Êı¾İ·ÅÈë·¢ËÍ»º³åÇø£¬×îÖÕ·µ»ØdateLen¡£
+  //Èç¹û·¢ËÍ»º³åÇøÒÑÂú£¬ÔÚsocket×èÈûÄ£Ê½ÏÂ»áµÈ´ıËùÓĞÊı¾İ·ÅÈë·¢ËÍ»º³åÇø£¬¶øÔÚ·Ç×èÈûÄ£Ê½ÏÂÔòÁ¢¼´·µ»Ø-1¡£
+  //×èÈûÄ£Ê½ÊÇÁ÷Ê½·¢ËÍµÄ£¬²»¹Ü¶à´ó³¤¶ÈµÄÊı¾İ¶¼ÄÜ·¢£¬×èÈûµÈ´ıËùÓĞÊı¾İ·¢ËÍÍê²Å·µ»Ø¡£
+  //CentOSĞ­ÒéÕ»Ä¬ÈÏµÄTCP·¢ËÍ»º³åÔ¼Îª20KB£¬UDP·¢ËÍ»º³åÔ¼Îª64KB£¬¿ÉÉèÖÃ¡£
+  if(hSocket)
+  { int localSocket=((TcmSocket *)hSocket)->_localAddr.socket;
+    if(localSocket>0)return send(localSocket,(const char *)pData,dataLen,0);
+  }
+  return -1;
 }
 
 BOOL SOCKET_SetSocketBuffer(HAND hSocket,int recvBufsize,int sendBufsize)
@@ -1938,20 +1568,6 @@ int SOCKET_SendTo(HAND hSocket,void *pData, U32 dataLen,U32 peerAddr,U16 peerPor
   return -1;
 }
 
-int SOCKET_Send(HAND hSocket,void *pData, U32 dataLen)
-{ //Ö´ĞĞsendº¯ÊıÖ»ÊÇ½«Êı¾İ·ÅÈëĞ­ÒéÕ»µÄ·¢ËÍ»º³åÇø£¬²»»áÕæÕıÖ´ĞĞ·¢ËÍ¶¯×÷¡£
-  //Èç¹ûµ÷ÓÃsend·¢ËÍËÍ¾İµÄ³¤¶È(dataLen)Ğ¡ÓÚµÈÓÚ·¢ËÍ»º³åÇøµÄÊ£Óà¿Õ¼ä´ó(freeLen),Ôò·µ»ØÊµ¼Ê·ÅÈë·¢ËÍ»ººÍ³åÇøµÄ×Ö½ÚÊı(dataLen)£¬´ËÊ±²»Éæ¼°×èÈû»ò·Ç×èÈûÄ£Ê½¡£
-  //Èç¹ûµ÷ÓÃsend·¢ËÍËÍ¾İµÄ³¤¶È(dataLen)´óÓÚ·¢ËÍ»º³åÇøµÄÊ£Óà¿Õ¼ä´ó(freeLen),ÔÚ·Ç×èÈûÄ£Ê½ÏÂ£¬Ôò·µ»ØÊµ¼Ê·ÅÈë·¢ËÍ»ººÍ³åÇøµÄ×Ö½ÚÊı(freeLen)£»ÔÚ×èÈûÄ£Ê½ÏÂ»á×Ô¶¯·ÖÅú½«Êı¾İ·ÅÈë·¢ËÍ»º³åÇø£¬×îÖÕ·µ»ØdateLen¡£
-  //Èç¹û·¢ËÍ»º³åÇøÒÑÂú£¬ÔÚsocket×èÈûÄ£Ê½ÏÂ»áµÈ´ıËùÓĞÊı¾İ·ÅÈë·¢ËÍ»º³åÇø£¬¶øÔÚ·Ç×èÈûÄ£Ê½ÏÂÔòÁ¢¼´·µ»Ø-1¡£
-  //×èÈûÄ£Ê½ÊÇÁ÷Ê½·¢ËÍµÄ£¬²»¹Ü¶à´ó³¤¶ÈµÄÊı¾İ¶¼ÄÜ·¢£¬×èÈûµÈ´ıËùÓĞÊı¾İ·¢ËÍÍê²Å·µ»Ø¡£
-  //CentOSĞ­ÒéÕ»Ä¬ÈÏµÄTCP·¢ËÍ»º³åÔ¼Îª20KB£¬UDP·¢ËÍ»º³åÔ¼Îª64KB£¬¿ÉÉèÖÃ¡£
-  if(hSocket)
-  { int localSocket=((TcmSocket *)hSocket)->_localAddr.socket;
-    if(localSocket>0)return send(localSocket,(const char *)pData,dataLen,0);
-  }
-  return -1;
-}
-
 int SOCKET_Receive(HAND hSocket,char *recvBuf, int bufSize,TNetAddr *peerAddr)
 { TcmSocket *cmSocket=(TcmSocket *)hSocket;
   if(cmSocket && cmSocket->_localAddr.socket>0)
@@ -1989,10 +1605,6 @@ HAND SOCKET_GetTag(HAND hSocket)
 { return (hSocket)?((TcmSocket *)hSocket)->_tag:NULL;
 }
 
-int SOCKET_GetMaxListen(void)
-{ return SOCKET_MAX_LISTEN;
-}
-
 void SOCKET_SetEvents(HAND hSocket,TSocketRecvEvent onReceive,TSocketCloseEvent onClose,TSocketClientEvent onClientChange)
 { if(hSocket)
   { ((TcmSocket *)hSocket)->OnRecv=(onReceive)?onReceive:_SOCKET_ReceiveToQueue;
@@ -2008,15 +1620,15 @@ BOOL SOCKET_CheckIPStr(char *ipstr)
   return FALSE;
 }
 
-BOOL SOCKET_IP2Str(U32 ip_data,char *ipstr)
-{ if(!ip_data)ip_data=SOCKET_HostIP(NULL);
+BOOL SOCKET_IPitoa(U32 ip_data,char *ipstr)
+{ if(!ip_data)ip_data=SOCKET_IPatoi(NULL);
   strcpy(ipstr,inet_ntoa(*((struct in_addr *)&ip_data)));
   //ÔÚ64Î»Linux»·¾³ÏÂ±ØĞë¼ÓÈëÍ·ÎÄ¼ş<arpa/inet.h>£¬·ñÔòµ÷ÓÃinet_ntoa»á²úÉúSegmentation fault´íÎó¡£
   return TRUE;
 }
 
 // this routine simply converts the address into an internet ip
-U32 SOCKET_HostIP(char *host_name)
+U32 SOCKET_IPatoi(char *host_name)
 { U32 ip_data=-1;
   if(host_name && *host_name)
   { ip_data=inet_addr(host_name);
@@ -2069,20 +1681,20 @@ static int SOCKET_ParseHttpHeap(char *header,int *pHeaderLength,int *pContentLen
     { int contentLength;
       char *q=stristr(p,"Content-Length:");
       if(q)
-      { contentLength=0;
+      { contentLength=0; 
         q+=15;
       	while(*q==32)q++;
       	while(*q>='0'&&*q<='9')contentLength=contentLength*10+(int)(*q++-'0');
         p=strstr(q,"\r\n\r\n");
       }
       else
-      { contentLength=-1; //suspend
+      { contentLength=-1;//suspend
         p=strstr(p,"\r\n\r\n");
       }
       if(p)
       { *pContentLength=contentLength;
-      	*pHeaderLength=(int)(p-header+4);
-      	return httpcode;
+        *pHeaderLength=(int)(p-header+4);
+        return httpcode;
       }
     }
     else if(httpcode==302 || httpcode==301)
@@ -2124,11 +1736,11 @@ static void socket_nonblock(int socket,BOOL bNonblock)
 }
 
 //POST±íµ¥µÄ×îºóÒ»¸ö×Ö¶ÎÖµ»á¸½¼Ó\r\n·û£¬ĞèÒª½ÓÊÕ·½×¢Òâ¡£
-int SOCKET_HttpPost(char *URL,void *formData,int formSize,char *responseBuffer,int buffersize,int msTimeout)
+int SOCKET_HttpPost(char *URL,void *formData,int formSize,char *responseBuffer,int buffersize,int sTimeout)
 { struct sockaddr_in servaddr;
   #define HTTP_BUFFER_SIZE 1024
   #define MAXLEN_HOST_NAME   64
-  U32 start_time=os_msRunTime();
+  U32 start_time=time(NULL);
   int sockfd,ret,svrport,readbytes,httpcode,remains,jmp=0;
   char httpbuf[HTTP_BUFFER_SIZE+1],strhostname[MAXLEN_HOST_NAME],*pbuf,*scriptName;
   label_start_post:
@@ -2137,7 +1749,7 @@ int SOCKET_HttpPost(char *URL,void *formData,int formSize,char *responseBuffer,i
   remains=HTTP_BUFFER_SIZE;
   pbuf=httpbuf;
   if((scriptName=SOCKET_UrlSplit(URL,&svrport,strhostname,MAXLEN_HOST_NAME))!=NULL)
-  { if((servaddr.sin_addr.s_addr=SOCKET_HostIP(strhostname))!=(U32)-1)
+  { if((servaddr.sin_addr.s_addr=SOCKET_IPatoi(strhostname))!=(U32)-1)
   	{ servaddr.sin_family = AF_INET;
       servaddr.sin_port = htons(svrport);
       memset(&servaddr.sin_zero,0,8);
@@ -2150,8 +1762,8 @@ int SOCKET_HttpPost(char *URL,void *formData,int formSize,char *responseBuffer,i
   { struct timeval tm;
     fd_set set;
     int error=-1, len = sizeof(int);
-    tm.tv_sec = msTimeout/1000;
-    tm.tv_usec = (msTimeout%1000)*1000;
+    tm.tv_sec = sTimeout;
+    tm.tv_usec = 0;
     FD_ZERO(&set);
     FD_SET(sockfd, &set);
     if( select(sockfd+1, NULL, &set, NULL, &tm) > 0)
@@ -2161,23 +1773,23 @@ int SOCKET_HttpPost(char *URL,void *formData,int formSize,char *responseBuffer,i
     else
     { label_connect_error:
       printf("connect error!\n");
-      os_closeSocket(sockfd);
+      os_closesocket(sockfd);
       return -1;
     }
   }
   socket_nonblock(sockfd,FALSE);  //ÉèÖÃ»Ø×èÈûÄ£Ê½
-  msTimeout-=(os_msRunTime()-start_time);//¸ù¾İÁ¬½ÓÏûºÄµÄÊ±¼äÀ´¼ÆËãÊ£ÓàÊ±¼ä¡£
-  if(msTimeout<=0)return -1;
-
+  sTimeout-=(time(NULL)-start_time);//¸ù¾İÁ¬½ÓÏûºÄµÄÊ±¼äÀ´¼ÆËãÊ£ÓàÊ±¼ä¡£
+  if(sTimeout<=0)return -1;
+  
   if(!formData) //http get
   { //httpµÄÇëÇóÍ·»òÏìÓ¦Í·¶¼ÊÇÒÔ/r/n/r/nÎª½áÊø±êÖ¾£»
     //ºóÃæKeep-Alive¸Ä³Éclose£¬ÏÈÑéÖ¤Í¨¹ıcontentLengthÍê³É½áÊø£¬ÔÙÑéÖ¤Í¨¹ıKeep-Alive¸Ä³ÉcloseÍê³É½áÊø;
-    ret=sprintf(httpbuf,"GET %s HTTP/1.0\r\nAccept: */*\r\nAccept-Language: zh-cn\r\nUser-Agent: Mozilla/4.0\r\nHost: %s\r\nConnection: close\r\nCache-Control: no-cache\r\n\r\n",(scriptName[0])?scriptName:"/",strhostname);
+    ret=sprintf(httpbuf,"GET %s HTTP/1.0\r\nAccept: */*\r\nAccept-Language: cn\r\nUser-Agent: Mozilla/4.0\r\nHost: %s\r\nConnection: close\r\nCache-Control: no-cache\r\n\r\n",(scriptName[0])?scriptName:"/",strhostname);
     ret=send(sockfd,httpbuf,ret,0);
   }
   else  //http post
   { if(formSize<=0)formSize=strlen((char *)formData);
-    ret=sprintf(httpbuf,"POST %s HTTP/1.0\r\nHost: %s\r\nAccept-Encoding: gzip,deflate\r\nAccept-Language: zh-cn\r\nAccept: */*\r\nContent-Type: application/x-www-form-urlencoded\r\nContent-Length: %d\r\n\r\n",(scriptName[0])?scriptName:"/",strhostname,formSize);
+    ret=sprintf(httpbuf,"POST %s HTTP/1.0\r\nHost: %s\r\nAccept-Encoding: gzip,deflate\r\nAccept-Language: cn\r\nAccept: */*\r\nContent-Type: application/x-www-form-urlencoded\r\nContent-Length: %d\n\n",(scriptName[0])?scriptName:"/",strhostname,formSize);
     if(ret+formSize+10<HTTP_BUFFER_SIZE)
     {  memcpy(httpbuf+ret,formData,formSize);
        ret+=formSize;
@@ -2194,14 +1806,14 @@ int SOCKET_HttpPost(char *URL,void *formData,int formSize,char *responseBuffer,i
   }
   if (ret<0)
   { printf("send error %d£¬Error message'%s'\n",errno, strerror(errno));
-    os_closeSocket(sockfd);
+    os_closesocket(sockfd);
     return -1;
   }
   while(1)
   { fd_set sockfd_set;
     struct timeval tv_timeout;
-    tv_timeout.tv_sec=msTimeout/1000;
-    tv_timeout.tv_usec=(msTimeout%1000)/1000;
+    tv_timeout.tv_sec=sTimeout;
+    tv_timeout.tv_usec=0;
     FD_ZERO(&sockfd_set);
     FD_SET(sockfd, &sockfd_set);
     ret=select(sockfd+1, &sockfd_set, NULL, NULL, &tv_timeout);
@@ -2219,18 +1831,18 @@ int SOCKET_HttpPost(char *URL,void *formData,int formSize,char *responseBuffer,i
       	    if(readbytes>buffersize)readbytes=buffersize;
       	    if(responseBuffer) memcpy(responseBuffer,pbuf+headerLength,readbytes);
       	    else
-      	    { os_closeSocket(sockfd);
-              return contentLength;
+      	    { os_closesocket(sockfd);
+      	    	return contentLength;
       	    }
-            if(contentLength>0 && contentLength<buffersize)remains=contentLength-readbytes;
-            else remains=buffersize-readbytes;
+     	      if(contentLength>0 && contentLength<buffersize)remains=contentLength-readbytes;
+     	      else remains=buffersize-readbytes;
       	    pbuf=responseBuffer;
       	  }
       	  else if( (httpcode==301 || httpcode==302) && ++jmp<3 )
       	  { //Ö§³Ö301/302ÈÎÒâ×ªÏòÖØ¶¨Î»£¬×ªÏòÊ±Ö´ĞĞhttp-get¡£
       	    URL=pbuf+headerLength;
       	    URL[contentLength]='\0';
-      	    os_closeSocket(sockfd);
+      	    os_closesocket(sockfd);
       	    formData=NULL;//È¥³ıformData²ÎÊı
       	    goto label_start_post;//to perform http-get
       	  }
@@ -2240,16 +1852,16 @@ int SOCKET_HttpPost(char *URL,void *formData,int formSize,char *responseBuffer,i
       }else break;
     }else break;
   }
-  os_closeSocket(sockfd);
+  os_closesocket(sockfd);
   if(httpcode==200)
   { if(readbytes<buffersize)responseBuffer[readbytes]='\0';
     return readbytes;
   }
-  else return 0;
+  else return	0;
 }
 
-int SOCKET_HttpGet(char *URL,char *responseBuffer,int buffersize,int msTimeout)
-{ return SOCKET_HttpPost(URL,NULL,0,responseBuffer,buffersize,msTimeout);
+int SOCKET_HttpGet(char *URL,char *responseBuffer,int buffersize,int sTimeout)
+{ return SOCKET_HttpPost(URL,NULL,0,responseBuffer,buffersize,sTimeout);
 }
 
 #if (__linux__)
@@ -2263,21 +1875,21 @@ U32   os_msRunTime(void)
 #ifdef _mysql_h
 //---------------------------------------------------------------------------
 //×¢Òâ£ºÍ¬Ò»¸öÁ¬½Ó(conn)ÏÂµÄ¶à¸ö²éÑ¯ÊÇÏß³Ì²»°²È«µÄ£¬¶àÏß³Ì²éÑ¯Ê±Òª×¢Òâ¼ÓËø¡£
-static pthread_mutex_t db_mutex_lock;
+static pthread_mutex_t db_mutex_lock; 
 #define SIZE_SQL_FORMAT_BUFFER     640
 static MYSQL *_dbconn=NULL;
 //---------------------------------------------------------------------------
 static void db_exception(void)
 { int _errno=mysql_errno(_dbconn);
   if (_errno)printf("Connection error %d: %s", _errno, mysql_error(_dbconn));
-  abort();//force core dump
+  abort();//force core dump 
 }
 
 void db_open(char *dbhost,char *dbname,char *dbuser,char *password)
 { _dbconn=mysql_init(NULL);
   if(mysql_real_connect(_dbconn,dbhost,dbuser,password,dbname,0,NULL,0))
   { mysql_query(_dbconn,"set names utf8");
-   	pthread_mutexattr_t attr;
+   	pthread_mutexattr_t attr; 
   	pthread_mutexattr_init(&attr); 
     pthread_mutexattr_settype(&attr,PTHREAD_MUTEX_RECURSIVE_NP); 
   	pthread_mutex_init(&db_mutex_lock,&attr);
@@ -2331,11 +1943,10 @@ MYSQL_RES *db_queryf(const char *format, ...)
   if(vsprintf(sql_buf, format, arg_ptr)>SIZE_SQL_FORMAT_BUFFER)
   { puts("[ERROR]#################db_queryf###############out of range!");
   	puts(sql_buf);
-  	abort();//force core dump ;	
+       abort();//force core dump  
   }
   va_end(arg_ptr);
   return db_query(sql_buf);
 }
-
 //---------------------------------------------------------------------------
 #endif //_mysql_h

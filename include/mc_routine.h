@@ -4,6 +4,7 @@
 //---------------------------------------------------------------------------
 #include <mysql/mysql.h>
 #include "mc_base.h"
+//#include "cmbase.h"
 #include "hybServKit.h"
 #include "mc_config.h"
 #include "mc_intern.h"
@@ -32,6 +33,8 @@ void msg_ack_general(TMcPacket *srcPacket,U8 errCode);
 void push_device_msg(U32 deviceID,int msgType,char *msgContent);
 int push_group_msg(U32 usrgroup,U32 devgroup,int msgType,char *msgContent,char *msgTitle);
 //---------------------------------------------------------------------------
+void session_lock(BOOL lock);
+U32  session_new(void);
 extern HAND terminalLinks,commDataLinks;
 //---------------------------------------------------------------------------
 #endif

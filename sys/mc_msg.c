@@ -87,34 +87,39 @@ BOOL msg_decrypt(TMcMsg *msg)
 //---------------------------------------------------------------------------
 BOOL msg_response_dispatch(TMcPacket *packet,void msgHandle(TMcPacket *,void *)){
     //TMSG_ACK_GENERAL *ack=(TMSG_ACK_GENERAL *)packet->msg.body;
-    BOOL ret=FALSE;
-    TSuspendRequest *susRequest=(TSuspendRequest *)dtmr_find(suspendRequestLinks,packet->msg.synid,0,NULL,DTMR_FOREVER);
-    if(susRequest && (packet->msg.msgid==(susRequest->reqPacket.msg.msgid|MSG_ACK_MASK)||packet->msg.msgid==MSG_ACK_MASK)){
+  TSuspendRequest *susRequest=(TSuspendRequest *)dtmr_find(suspendRequestLinks,packet->msg.synid,0,NULL,TRUE);
+  if(susRequest){
+    U32 ackMsgID=packet->msg.msgid;
+    if(ackMsgID==(susRequest->reqPacket.msg.msgid|MSG_ACK_MASK)||ackMsgID==MSG_ACK_MASK){
       U32 _ackSession=(susRequest->reqPacket.terminal)?susRequest->reqPacket.terminal->session:SERVER_DYNAMIC_SESSION(&packet->msg);
       if(_ackSession==packet->msg.sessionid /*&& susRequest->ack_msg==packet->msg.msgid*/){
-         // RESPONSE_APPENDIX(packet)=susRequest->extraData;
-          msgHandle(packet,susRequest->extraData);
-	  ret=TRUE;
-      }	
-      dtmr_remove(susRequest);
+        // RESPONSE_APPENDIX(packet)=susRequest->extraData;
+        msgHandle(packet,susRequest->extraData);
+        dtmr_unlock(susRequest,0);
+        dtmr_delete(susRequest);
+        return TRUE;
+      }
+    }	
+    dtmr_unlock(susRequest,0);
   }
-  return ret;
+  return FALSE;
 }
 //---------------------------------------------------------------------------
-static void msg_request_timeout(HAND ttasks,void *taskCode,U32 *taskID,char *taskName,U32 *sUpdateLifeTime){
-  TSuspendRequest * node=(TSuspendRequest *)taskCode;
+static void msg_request_timeout(HAND ttasks,void *taskNode,U32 *taskID,char *taskName){
+  TSuspendRequest * node=(TSuspendRequest *)taskNode;
   TTerminal *terminal=node->reqPacket.terminal;
   if(terminal){//terminal为NULL表示服务器发给自己的请求包（超时直接丢弃）
     if(node->retry_counter<REQUEST_RETRY_COUNT){
       msg_send(&node->reqPacket.msg,NULL,terminal);//超时重发消息包(流水号不变,照单重发)
       node->retry_counter++;
-      *sUpdateLifeTime=REQMSG_RETRY_INTERVAL_S;
+      return;
     }
     else{ //超时回调
       extern void Response_MSG_TIMEOUT(TMcPacket *requestPacket,void *extraData);
       Response_MSG_TIMEOUT(&node->reqPacket,node->extraData);
     }
   }	
+  dtmr_delete(taskNode);
 }  
 //---------------------------------------------------------------------------
 void msg_sendto(TMcMsg *msg,TNetAddr *peerAddr){
@@ -175,7 +180,8 @@ void msg_request(TMcMsg *reqMsg,TTerminal *terminal,/*U32 ackMsgID,*/void *extra
     if(extraData)req_packet_size+=extraSize;
     else extraSize=0;    
   }
-  TSuspendRequest *node=(TSuspendRequest *)dtmr_add(suspendRequestLinks,reqMsg->synid,0,NULL,NULL,req_packet_size,REQMSG_RETRY_INTERVAL_S|DTMR_LOCK);
+  U32 dtmrOptions=DTMR_LOCK|DTMR_ENABLE|DTMR_CYCLE|DTMR_TIMEOUT_DELETE|DTMR_OVERRIDE;
+  TSuspendRequest *node=(TSuspendRequest *)dtmr_add(suspendRequestLinks,reqMsg->synid,0,NULL,NULL,req_packet_size,REQMSG_RETRY_INTERVAL_MS,&dtmrOptions);
   if(node)
   { //node->ack_msg=ackMsgID;
     node->retry_counter=1;

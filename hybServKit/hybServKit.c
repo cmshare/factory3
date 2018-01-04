@@ -1,7 +1,10 @@
 #include "cmbase.h"
 //---------------------------------------------------------------------------
-#define DISCRETETRANSFER_OVERTIME_S     2
+#define DISCRETETRANSFER_OVERTIME_MS     2000
 #define DiscreteTransferIDL(addr)      ((addr)->socket|((addr)->port<<16))
+#define TCP_CONNECTION_TIMEOUT_S          100    //unit:second                                                                         |typedef struct
+#define SOCKET_MAX_DGRAMSIZE              1500  
+#define SOCKET_MAX_LISTEN                 FD_SETSIZE  //服务器最大并发连接数（不超过FD_SETSIZE,修改FD_SETSIZE在系统头文件中。）
 //---------------------------------------------------------------------------
 #define s_maxTcpSliceSize 1500
 static int hskUdpSocket=-1,hskTcpSocket=-1,s_maxUdpDatagramSize;
@@ -403,7 +406,7 @@ static void Shuttown_TcpClient(TNetAddr *peerAddr){
   }  
 }
 
-static void OnDiscreteTransferTimeout(HAND ttsk,void *node,U32 *taskid,char *taskName,U32 *sUpdatetime){
+static void OnDiscreteTransferTimeout(HAND ttsk,void *node,U32 *taskid,char *taskName){
   U32 isShortConnect= (dtmr_getSize(node)==sizeof(BOOL))?*(BOOL *)node:FALSE; //默认为长连接
   if(isShortConnect){
      Shuttown_TcpClient((TNetAddr *)taskid);
@@ -452,6 +455,7 @@ int hsk_readData(void *recvBuf, int bufSize,TNetAddr *peerAddr){
 }
 //---------------------------------------------------------------------------
 THskPacket *hsk_assemble(TNetAddr *peerAddr,void *sliceData,int sliceLen,int predictPacketSize){
+   #define KEEP_ENOUGH_TIME    1000*60*60    
    TDiscreteTransfer *node=(TDiscreteTransfer *)dtmr_find(discreteTransferLinks,DiscreteTransferIDL(peerAddr),peerAddr->ip,NULL,DTMR_LOCK);
    LABEL_ASSEMBLE_BEGIN:
    if(node){
@@ -468,7 +472,7 @@ THskPacket *hsk_assemble(TNetAddr *peerAddr,void *sliceData,int sliceLen,int pre
                 node->recvbytes=node->totalbytes;
    	      }
    	      memcpy(p_recv,sliceData,sliceLen);
-   	      dtmr_unlock(node,DTMR_FOREVER);
+   	      dtmr_unlock(node,KEEP_ENOUGH_TIME);//Long enough time
      	      return &node->packet; 
    	    }		
    	  }
@@ -481,7 +485,8 @@ THskPacket *hsk_assemble(TNetAddr *peerAddr,void *sliceData,int sliceLen,int pre
        dtmr_unlock(node,0);
    }
    else if(predictPacketSize>0 && predictPacketSize<=s_maxTcpSliceSize){
-      node=(TDiscreteTransfer *)dtmr_add(discreteTransferLinks,DiscreteTransferIDL(peerAddr),peerAddr->ip,NULL,NULL,sizeof(TDiscreteTransfer)+predictPacketSize,DISCRETETRANSFER_OVERTIME_S|DTMR_LOCK);
+      const U32 dtmrOptions=DTMR_LOCK|DTMR_TIMEOUT_DELETE|DTMR_OVERRIDE;
+      node=(TDiscreteTransfer *)dtmr_add(discreteTransferLinks,DiscreteTransferIDL(peerAddr),peerAddr->ip,NULL,NULL,sizeof(TDiscreteTransfer)+predictPacketSize,DISCRETETRANSFER_OVERTIME_MS,&dtmrOptions);
       if(node){
          node->packet.addr=*peerAddr;
     	 node->totalbytes=predictPacketSize;
@@ -493,7 +498,7 @@ THskPacket *hsk_assemble(TNetAddr *peerAddr,void *sliceData,int sliceLen,int pre
          else{
            node->recvbytes=predictPacketSize;
        	   memcpy(node->packet.data,sliceData,predictPacketSize);
-           dtmr_unlock(node,DTMR_FOREVER);
+           dtmr_unlock(node,KEEP_ENOUGH_TIME);
      	   return &node->packet; 
          }  
       }	
@@ -539,8 +544,9 @@ void hsk_releaseTcpPacket(THskPacket *packet,BOOL isHeapMsg,BOOL isShortConnect)
 		*/
 		//puts("##NO.17 hsk_releasePacket");
   if(isShortConnect||isHeapMsg){
-      const U32 closeWaitTime_s=1;	//通过超时关闭socket
-      dtmr_add(discreteTransferLinks,DiscreteTransferIDL(&packet->addr),packet->addr.ip,NULL,&isShortConnect,sizeof(isShortConnect),closeWaitTime_s);
+      const U32 closeWaitTime_ms=1000;	//通过超时关闭socket
+      U32 dtmrOptions=DTMR_TIMEOUT_DELETE|DTMR_OVERRIDE;
+      dtmr_add(discreteTransferLinks,DiscreteTransferIDL(&packet->addr),packet->addr.ip,NULL,&isShortConnect,sizeof(isShortConnect),closeWaitTime_ms,&dtmrOptions);
   }
 }
 

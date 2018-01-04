@@ -1,6 +1,7 @@
 #include "mc_routine.h"
 //---------------------------------------------------------------------------
 HAND terminalLinks=NULL,commDataLinks=NULL;
+static HAND uwb_session_locker=NULL;
 //commDataLinks通用性规则约定：hTaskID存储消息ID，由字段值决定附件数据结构类型。
 //---------------------------------------------------------------------------
 //将终端在线状态变化后通知绑定的用户手机
@@ -42,7 +43,7 @@ void staticMap_generate(TTerminal *terminal){
 }
 //---------------------------------------------------------------------------
 //终端设备或手机的心跳超时处理
-static void terminal_HbTimeout(HAND ttasks,void *taskCode,U32 *taskID,char *taskName,U32 *sUpdateLifeTime){
+static void terminal_HbTimeout(HAND ttasks,void *taskCode,U32 *taskID,char *taskName){
   TTerminal * terminal=(TTerminal *)taskCode;
  // Log_AppendText("\r\n[HeatBeatTimeout:%s]",terminal->name);
   switch(terminal->term_type){
@@ -77,26 +78,37 @@ static void terminal_HbTimeout(HAND ttasks,void *taskCode,U32 *taskID,char *task
   DBLog_AppendData("\xFF\xFF\xFF\xFF\x01",5,terminal); //超时登出日志
 }
 //---------------------------------------------------------------------------
-U32 SessionID_new(void)
-{ while(1)
+void session_init(void){
+  os_createSemphore(&uwb_session_locker, 1);/*信号量初值为1，作互斥量*/
+}
+
+void session_lock(BOOL lock){
+  if(lock)os_obtainSemphore(uwb_session_locker);
+  else os_releaseSemphore(uwb_session_locker);
+}
+
+U32 session_new(void){
+  while(1)
   { U32 rand_session=rand();
     if(rand_session)
     { if(!dtmr_find(terminalLinks,rand_session,0,0,0))return rand_session;
-    }	
-  }	
+    }
+  }
 }
+
 //---------------------------------------------------------------------------
 void terminal_init(void)
 { MYSQL_RES *res;
+  U32 dtmrOptions=DTMR_TIMEOUT_DELETE|DTMR_OVERRIDE;
   U32 local_UdpSocket=hsk_getUdpSocket();
-  terminalLinks=dtmr_create(1024,HEARTBEAT_OVERTIME_S,terminal_HbTimeout);
+  terminalLinks=dtmr_create(1024,HEARTBEAT_OVERTIME_MS,terminal_HbTimeout);
   commDataLinks=dtmr_create(0,60,NULL);
   res=db_query("select id,username,session,ip,port,groupid,sex,msgpush,livepush from `mc_users` where session<>0");
   if(res)
   { MYSQL_ROW row;
     while((row = mysql_fetch_row(res)))
     { U32 sessionid=atoi(row[2]);//field["session"]
-      TTerminal *node=(TTerminal *)dtmr_add(terminalLinks,sessionid,0,0,NULL,sizeof(TTermUser),HEARTBEAT_OVERTIME_S);
+      TTerminal *node=(TTerminal *)dtmr_add(terminalLinks,sessionid,0,0,NULL,sizeof(TTermUser),HEARTBEAT_OVERTIME_MS,&dtmrOptions);
       if(node)
       { node->term_type=TT_USER;
         node->session=sessionid;
@@ -118,7 +130,7 @@ void terminal_init(void)
   { MYSQL_ROW row;
     while((row = mysql_fetch_row(res)))
     { U32 sessionid=atoi(row[2]);//field["session"]
-      TTerminal *node=(TTerminal *)dtmr_add(terminalLinks,sessionid,0,0,NULL,sizeof(TTermDevice),HEARTBEAT_OVERTIME_S);
+      TTerminal *node=(TTerminal *)dtmr_add(terminalLinks,sessionid,0,0,NULL,sizeof(TTermDevice),HEARTBEAT_OVERTIME_MS,&dtmrOptions);
       if(node)
       { node->term_type=TT_DEVICE;
         node->session=sessionid; 

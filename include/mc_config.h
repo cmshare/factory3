@@ -43,11 +43,11 @@
 #define REQUEST_RETRY_COUNT         3 
 #define NUM_DISPATCH_THREAD         8 
 #define PacketBufferMaxSize         80
-#define MIN_SMS_INTERVAL_S          50
-#define REQMSG_RETRY_INTERVAL_S     3
-#define HEARTBEAT_OVERTIME_S        120    //3次以上无心跳视为超时
-#define VERIFYCODE_LIFETIME_S       300
-#define SPAN_MSG_PUSH_FILTER_S      10
+#define MIN_SMS_INTERVAL_MS         50000
+#define REQMSG_RETRY_INTERVAL_MS    3000
+#define HEARTBEAT_OVERTIME_MS       120000    //3次以上无心跳视为超时
+#define VERIFYCODE_LIFETIME_MS      300000
+#define SPAN_MSG_PUSH_FILTER_MS     10000
 #define SIZE_SN_DEVICE              20
 #define SIZE_MD5                    32
 #define SIZE_MOBILE_PHONE           11

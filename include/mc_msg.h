@@ -13,17 +13,19 @@
 
 #define MSG_ACK_MASK              0x80000000    //服务器通用应答
 #define MSG_STA_GENERAL           MSG_ACK_MASK     //服务器通用应答
-#define MSG_TSR_SPYLOGIN          0x0000800A    //监控客户端登录请求
-#define MSG_STR_SPYNOTIFY         0x0000800B    //服务器对监控端的消息通知
 
+//#define MSG_SUR_NOTIFY_MSGBOX    0x00000001    //服务器事件通知请求
+//#define MSG_USA_NOTIFY_MSGBOX    (MSG_SUR_NOTIFY_MSGBOX|MSG_STA_GENERAL) 
+#define MSG_DSR_LOGIN             0x00000001    //终端设备登录请求
+#define MSG_SDA_LOGIN             (MSG_DSR_LOGIN|MSG_STA_GENERAL)  //终端登录响应
+ 
 #define MSG_BSR_NOTIFY            0x00008001    //WEB管理平台(浏览器)通知服务器后台服务
 
 #define MSG_SDR_COMMJSON          0x00000100    //终端JSON信息请求（应答按通用应答）
 
 #define MSG_DSR_COMMJSON          0x00000101    //终端JSON信息上报（应答按通用应答）
 
-#define MSG_SUR_NOTIFY_MSGBOX    0x00000001    //服务器事件通知请求
-#define MSG_USA_NOTIFY_MSGBOX    (MSG_SUR_NOTIFY_MSGBOX|MSG_STA_GENERAL) 
+
 
 #define MSG_USR_READ_OFFLINEMSG   0x00000004    //读取离线消息
 #define MSG_SUA_READ_OFFLINEMSG   (MSG_USR_READ_OFFLINEMSG|MSG_STA_GENERAL) 
@@ -31,9 +33,7 @@
 #define MSG_USR_DELETE_OFFLINEMSG 0x00000005    //删除离线消息
 #define MSG_SUA_DELETE_OFFLINEMSG (MSG_USR_DELETE_OFFLINEMSG|MSG_STA_GENERAL) 
 
-#define MSG_DSR_LOGIN             0x00000014    //终端设备登录请求
-#define MSG_SDA_LOGIN             (MSG_DSR_LOGIN|MSG_STA_GENERAL)  //终端登录响应
-                                  
+                                 
 #define MSG_USR_LOGIN             0x00000012    //手机用户登录请求
 #define MSG_SUA_LOGIN             (MSG_USR_LOGIN|MSG_STA_GENERAL)  //用户登录响应
 
@@ -201,9 +201,9 @@ enum {DEVSTATE_OFFLINE=0,DEVSTATE_SLEEP=1,DEVSTATE_WAKEUP=2,DEVSTATE_ONLINE=3};
 enum {WARNINGMSG_VIBRATE=1,WARNINGMSG_LOWPOWER=2,WARNINGMSG_FLOWDEPLETE=3,WARNINGMSG_LOWFLOW=4,WARNINGMSG_FLOWTOEXPIRE=5,WARNINGMSG_SNAPSHOT_1=6};
 
 typedef struct
-{ char name[SIZE_SN_DEVICE+1],psw[MAXLEN_PASSWORD+1];
-  U8 type; //0：一代设备; 1：二代盒子；2：二代摄像头
-}TMSG_DSR_LOGIN,TMSG_TSR_SPYLOGIN;
+{ U32 anchorid;  //基站ID
+  U32 version;   //基站当前版本（目前固定为0）
+}TMSG_DSR_LOGIN;
 
 typedef struct
 { char name[SIZE_MOBILE_PHONE+1],psw[MAXLEN_PASSWORD+1];
@@ -231,10 +231,9 @@ typedef struct
 { U8  value;
 }TMSG_SSR_SMS,TMSG_STR_SPYNOTIFY,TMSG_VSR_LIVE_RET,TMSG_DSR_NOTIFY_STATE,TMSG_DSR_NOTIFY_STRIKE,TMSG_SDR_WAKEUP,TMSG_USR_CHANGESEX,TMSG_USR_ACCEPTMSGPUSH,TMSG_USR_ACCEPTLIVEPUSH;
 
-typedef struct
-{ U32 ack_synid;
-  U8  error;
+typedef struct{
   U32 session;
+  U32 flags;
 }TMSG_SDA_LOGIN,TMSG_SUA_LOGIN;
 
 typedef struct
