@@ -48,31 +48,19 @@ static void terminal_HbTimeout(HAND ttasks,void *taskCode,U32 *taskID,char *task
  // Log_AppendText("\r\n[HeatBeatTimeout:%s]",terminal->name);
   switch(terminal->term_type){
     case TT_DEVICE:{//device
-           U32 box_session=0;
-           U32 boxid=((TTermDevice *)terminal)->boxid;
-           if(boxid)//盒子未离线
-           { MYSQL_RES *res=db_queryf("select session from mc_boxes where id=%u",boxid);
-             if(res)
-             { MYSQL_ROW row=mysql_fetch_row(res);
-               if(row) box_session=atoi(row[0]);
-               mysql_free_result(res);
-             }
-           }
-           if(box_session){//存在在线的盒子
-             //只释放session,不修改终端state(只要盒子在线，终端系统就没有离线).
-             db_queryf("update `mc_devices` set session=0,logouttime=unix_timestamp() where id=%u",terminal->id);
-           }
-           else{//没有盒子或者盒子不在线
              //释放session,并修改终端state(确定全套系统离线).
-             db_queryf("update `mc_devices` set session=0,state=%d,logouttime=unix_timestamp() where id=%u",DEV_STATE_OFFLINE,terminal->id);
+             TNetAddr *peerAddr=&terminal->loginAddr;
+             db_queryf("update uwb_anchor set session=0,logouttime=unix_timestamp() where id=%u",terminal->id);
              terminal->term_state=DEV_STATE_OFFLINE;
+             if(hsk_isTcpSocket(peerAddr->socket)) shutdown(peerAddr->socket,2);
+             terminal->loginAddr.socket=0;//mark disconnected
              //device_stateNotifyUser(terminal,0);//通知绑定手机终端摄像头已离线
-           }
-           staticMap_generate(terminal);
+           //staticMap_generate(terminal);
          }
          break;
     case TT_USER: //user
            db_queryf("update `mc_users` set session=0,logouttime=unix_timestamp() where id=%u",terminal->id);
+           UWBLab_removeUser(terminal);
          break;
   }
   DBLog_AppendData("\xFF\xFF\xFF\xFF\x01",5,terminal); //超时登出日志

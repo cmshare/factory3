@@ -26,7 +26,7 @@ void DBLog_AppendData(void *data,int datalen,TTerminal *terminal)
 
 void DBLog_AppendMsg(TMcMsg *msg,TTerminal *terminal,BOOL bSendOrRecv)
 { if(msg && terminal)
-	{ if( (msg->msgid==MSG_TSR_HEARTBEAT)||(msg->msgid==MSG_DSR_UPLOAD_GPS)||(msg->msgid==MSG_SDA_UPLOAD_GPS)||(msg->msgid==MSG_STA_GENERAL && ((TMSG_STA_GENERAL *)msg->body)->ack_msgid==MSG_TSR_HEARTBEAT))return; 
+	{ if( (msg->msgid==MSG_TSR_HEARTBEAT)||(msg->msgid==MSG_DSR_UPLOAD_GPS)||(msg->msgid==MSG_SDA_UPLOAD_GPS)||(msg->msgid==MSG_ACK_GENERAL && ((TMSG_ACK_GENERAL *)msg->body)->ack_msgid==MSG_TSR_HEARTBEAT))return; 
 		U8 record_data[DBLOG_RECORD_MAXLEN+sizeof(TMcDBLog)];
 		TMcDBLog *dblog=(TMcDBLog *)record_data;
 		int datalen=MC_MSG_SIZE(msg);

@@ -25,6 +25,7 @@ void   hsk_releaseTcpPacket(THskPacket *packet,BOOL isHeapMsg,BOOL isShotConnect
 THskPacket *hsk_assemble(TNetAddr *peerAddr,void *sliceData,int sliceLen,int predictPacketSize);
 int    hsk_httpPost(char *URL,void *formData,int formSize,char *responseBuffer,int buffersize,int sTimeout);
 int    hsk_httpGet(char *URL,char *responseBuffer,int buffersize,int sTimeout);
+BOOL   hsk_isTcpSocket(int socket);
 char  *str_xmlSeek(char *xmlbuf,char *key,int *len);
 int    str_lenOfUTF8(char *str);
 int    str_fromTime(char *strTime,char *format,time_t timestamp);
@@ -47,6 +48,7 @@ BOOL  dtmr_lock(void *dnode);
 void  dtmr_unlock(void *dnode,U32 msUpdateLifeTime);
 char *dtmr_getName(void *dnode);
 int   dtmr_getSize(void *dnode);
+U32   dtmr_getMode(void *dnode);
 void  dtmr_delete(void *dnode);
 //---------------------------------------------------------------------------	
 MYSQL *db_conn(void);

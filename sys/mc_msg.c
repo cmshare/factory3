@@ -1,6 +1,6 @@
 #include "mc_routine.h"
 //---------------------------------------------------------------------------
-#define AES128_KEY_CODE          "www.mplanet.cn  "
+#define AES128_KEY_CODE          "hello my darling"
 #define MSG_SNDQUEUE_SIZE        SERVER_BAND_WIDTH*1024*1024*4U            //服务器在32秒钟内最多发送的数据量（单位Byte)
 static  U32 msg_sndbuf_pos=0;
 static  char *msg_sndbuf=NULL;
@@ -207,8 +207,8 @@ void msg_ack(TMcPacket *srcPacket,void *msgData,int dataLen){
 }
 
 void msg_ack_general(TMcPacket *srcPacket,U8 errCode){
-    TMcMsg *msg=msg_alloc(MSG_STA_GENERAL,sizeof(TMSG_STA_GENERAL));
-    TMSG_STA_GENERAL *ackBody=(TMSG_STA_GENERAL *)msg->body;
+    TMcMsg *msg=msg_alloc(MSG_ACK_GENERAL,sizeof(TMSG_ACK_GENERAL));
+    TMSG_ACK_GENERAL *ackBody=(TMSG_ACK_GENERAL *)msg->body;
     ackBody->ack_msgid=srcPacket->msg.msgid;
     ackBody->error=errCode;
     msg_send(msg,srcPacket,NULL);

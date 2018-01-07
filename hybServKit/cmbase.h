@@ -202,6 +202,7 @@ BOOL  dtmr_update(void *dnode,U32 msUpdateLifeTime,U32 options);
 BOOL  dtmr_lock(void *dnode);
 void  dtmr_unlock(void *dnode,U32 msUpdateLifeTime);
 char *dtmr_getName(void *dnode);
+U32   dtmr_getMode(void *dnode);
 int   dtmr_getSize(void *dnode);
 void  dtmr_delete(void *dnode);
 //---------------------------------------------------------------------------

@@ -1,92 +1,23 @@
 #include "mc_routine.h"
 
-#if 0
-void Handle_MSG_DSR_LOGIN(TMcPacket *packet){
-  enum{DEV_LOGIN_ORIGIN=0,DEV_LOGIN_BOX=1,DEV_LOGIN_CAMERA=2};
-  TTerminal *terminal=NULL;
-  U32  deviceID=0,sessionid=0,loginTime,deviceGroup,deviceState;
-  TMSG_DSR_LOGIN *content=(TMSG_DSR_LOGIN *)packet->msg.body;
-  U8 error_code=1;
-  if(content->name[0] && db_checkSQL(content->name) && Password_check(content->psw))
-  {  MYSQL_RES *res;
-     res=db_queryf("select id,session,groupid,logintime,state from `mc_devices` where sn='%s' and password=md5('%s')",content->name,content->psw); 
-     if(res)
-     { MYSQL_ROW row=mysql_fetch_row(res);
-       if(row)
-       {  deviceID=atoi(row[0]);
-          sessionid=atoi(row[1]);
-          deviceGroup=atoi(row[2]);
-          loginTime=atoi(row[3]);
-          deviceState=atoi(row[4]);
-          if(sessionid)
-          { terminal=(TTerminal *)dtmr_find(terminalLinks,sessionid,0,0,TRUEHEARTBEAT_OVERTIME_S); 
-            if(terminal && terminal->id!=deviceID)
-            { //上一次使用的session已经被其他设备占用（所查到的terminal是其他设备）。
-              sessionid=0;
-              terminal=NULL;
-            }
-          } 
-       }
-       mysql_free_result(res);   
-     }  
-  }
-
-  if(deviceID)
-  { extern U32 SessionID_new(void);
-    if(!sessionid)sessionid=SessionID_new(); 
-    if(!terminal) {
-      int termsize=sizeof(TTermDevice);
-      terminal=(TTerminal *)dtmr_add(terminalLinks,sessionid,0,0,NULL,termsize,HEARTBEAT_OVERTIME_S);
-      memset(terminal,0,termsize);
-      loginTime=time(NULL);
-    }
-    terminal->term_type=TT_DEVICE;
-    terminal->id=deviceID;
-    terminal->loginAddr=packet->peerAddr;//登录方式必须要求UDP
-    terminal->session=sessionid;
-    terminal->group=deviceGroup;
-    terminal->encrypt=packet->msg.encrypt;//消息体默认加密方式
-    terminal->term_state=deviceState; //the login action do not change device state
-    strncpy(terminal->name,content->name,SIZE_SN_DEVICE+1);
-    error_code=0;
-    db_queryf("update `mc_devices` set session=%u,ip=%u,port=%u,logintime=%u where id=%u",sessionid,packet->peerAddr.ip,packet->peerAddr.port,loginTime,deviceID);
-  }
-  
-  packet->terminal=terminal;
-  TMcMsg *msg=msg_alloc(MSG_SDA_LOGIN,sizeof(TMSG_SDA_LOGIN));
-  TMSG_SDA_LOGIN *ackBody=(TMSG_SDA_LOGIN *)msg->body;
-  ackBody->ack_synid=packet->msg.synid;
-  ackBody->session=sessionid;
-  ackBody->error=error_code;
-  msg_send(msg,packet,NULL);
-
-  if(error_code==0){ 
-    DBLog_AppendData("\xFF\xFF\xFF\xFF\x00",5,terminal); //登录日志
-  }
-}
-#endif
+void UWBLab_addUser(TTerminal *user);
 
 void Handle_MSG_USR_LOGIN(TMcPacket *packet){
   TTerminal *terminal=NULL,*terminalKickOff=NULL;
+  TMSG_USR_LOGIN *content=(TMSG_USR_LOGIN *)packet->msg.body;
+  char *username=content->name;
+  char *passwd=content->passwd;
   U32 userid=0,sessionid=0,userGroup;
-  U8 sex_type,msgpush,livepush,error_code=0;
-  char *username,pwd_pattern[SIZE_MD5+3];
+  U8 sex_type,error_code=0;
+  char pwd_pattern[SIZE_MD5+3]="\0";
   session_lock(TRUE);
-  if(packet->msg.msgid==MSG_USR_LOGIN){
-     TMSG_USR_LOGIN *content=(TMSG_USR_LOGIN *)packet->msg.body;
-     username=content->name;
-     if(content->psw[0]=='\0' || Password_check(content->psw))sprintf(pwd_pattern,"md5('%s')",content->psw);
-     else pwd_pattern[0]='\0';//Invalid password!
+  if(passwd[0]!='\0' && Password_check(passwd)){
+    int pwdlen=strlen(passwd); 
+    if(pwdlen==SIZE_MD5) sprintf(pwd_pattern,"'%s'",passwd);
+    else if(pwdlen<=MAXLEN_PASSWORD)sprintf(pwd_pattern,"md5('%s')",passwd);
   }
-  else{
-     TMSG_USR_LOGIN2 *content=(TMSG_USR_LOGIN2 *)packet->msg.body;
-     username=content->name;
-     if(strlen(content->psw_md5)==SIZE_MD5 && Password_check(content->psw_md5)) sprintf(pwd_pattern,"'%s'",content->psw_md5);
-     else pwd_pattern[0]='\0'; //Invalid password!
-  }
-
   if(db_checkSQL(username) && pwd_pattern[0]!='\0'){ 
-     MYSQL_RES *res=db_queryf("select id,session,groupid,sex,msgpush,livepush from `mc_users` where username='%s' and password=%s",username,pwd_pattern);
+     MYSQL_RES *res=db_queryf("select id,session,groupid,sex from `mc_users` where username='%s' and password=%s",username,pwd_pattern);
      if(res){ 
         MYSQL_ROW row=mysql_fetch_row(res);
         if(row)
@@ -94,8 +25,6 @@ void Handle_MSG_USR_LOGIN(TMcPacket *packet){
           sessionid=atoi(row[1]);
           userGroup=atoi(row[2]);
           sex_type=atoi(row[3]);
-          msgpush=atoi(row[4]);
-          livepush=atoi(row[5]);
           if(sessionid)
           { terminal=(TTerminal *)dtmr_find(terminalLinks,sessionid,0,0,TRUE);
             if(terminal)
@@ -108,14 +37,20 @@ void Handle_MSG_USR_LOGIN(TMcPacket *packet){
                else if(memcmp(&terminal->loginAddr,&packet->peerAddr,sizeof(TNetAddr))!=0)
                { //同一用户名多处登录的状况
                  //将原先登录的用户踢下线
-                 TMcMsg *reqmsg=msg_alloc(MSG_SUR_KICKOFF,0);
-                 msg_request(reqmsg,terminal,NULL,0);
-                 //安全删除原先登录的用户节点
-                 terminalKickOff=terminal;
-                 dtmr_unlock(terminal,0);//删除后的节点无法被查找，但会保留足够长一段时间
-                 dtmr_delete(terminal);//删除后的节点无法被查找，但会保留足够长一段时间
-                 terminal=NULL;
-                 //sessionid=0; //sessionID可继续使用
+                 if(terminal->loginAddr.socket==0||(hsk_isTcpSocket(terminal->loginAddr.socket) && terminal->loginAddr.socket==packet->peerAddr.socket)){
+                    //对于TCP连接，socket已经被新连接覆盖的情况,无法通知原先登录的用户
+                    terminal->loginAddr=packet->peerAddr;
+                 }
+                 else{
+                   TMcMsg *reqmsg=msg_alloc(MSG_SUR_KICKOFF,0);
+                   msg_request(reqmsg,terminal,NULL,0);
+                   //安全删除原先登录的用户节点
+                   terminalKickOff=terminal;
+                   dtmr_unlock(terminal,0);//删除后的节点无法被查找，但会保留足够长一段时间
+                   dtmr_delete(terminal);//删除后的节点无法被查找，但会保留足够长一段时间
+                   terminal=NULL;
+                   //sessionid=0; //sessionID可继续使用
+                 }
                }
             }
           }
@@ -140,14 +75,16 @@ void Handle_MSG_USR_LOGIN(TMcPacket *packet){
     terminal->session=sessionid;
     terminal->group=userGroup;
     terminal->sex_type=sex_type;
-    terminal->msg_push_acceptable=msgpush;
     terminal->encrypt=packet->msg.encrypt;//消息体默认加密方式
     strncpy(terminal->name,username,SIZE_MOBILE_PHONE+1);
     db_queryf("update `mc_users` set session=%u,ip=%u,port=%u,logintime=unix_timestamp() where id=%u",sessionid,packet->peerAddr.ip,packet->peerAddr.port,userid);
   }
   packet->terminal=terminal;
-  if(terminal) dtmr_unlock(terminal,HEARTBEAT_OVERTIME_MS);
-  TMcMsg *msg=msg_alloc(packet->msg.msgid|MSG_STA_GENERAL,sizeof(TMSG_SUA_LOGIN));
+  if(terminal){
+    UWBLab_addUser(terminal);
+    dtmr_unlock(terminal,HEARTBEAT_OVERTIME_MS);
+  }
+  TMcMsg *msg=msg_alloc(packet->msg.msgid|MSG_ACK_GENERAL,sizeof(TMSG_SUA_LOGIN));
   TMSG_SUA_LOGIN *ackBody=(TMSG_SUA_LOGIN *)msg->body;
   //ackBody->error=error_code;
   ackBody->session=(error_code==0)?sessionid:0;
@@ -157,10 +94,6 @@ void Handle_MSG_USR_LOGIN(TMcPacket *packet){
   if(error_code==0)DBLog_AppendData("\xFF\xFF\xFF\xFF\x00",5,terminal); //登录日志
 }
 
-
-void Handle_MSG_USR_LOGIN2(TMcPacket *packet)
-{  Handle_MSG_USR_LOGIN(packet);
-}
 
 void Handle_MSG_USR_LOGOUT(TMcPacket *packet)
 { db_queryf("update `mc_users` set session=0,logouttime=unix_timestamp() where id=%u",packet->terminal->id);

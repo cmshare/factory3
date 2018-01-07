@@ -515,6 +515,10 @@ int hsk_getTcpSocket(void)
 { return hskTcpSocket;
 }
 
+BOOL hsk_isTcpSocket(int socket){
+  return (socket!=hskUdpSocket);
+}
+
 void hsk_sendData(void *data,int datalen,TNetAddr *peerAddr){
   if(peerAddr){
     int peerSocket=peerAddr->socket;

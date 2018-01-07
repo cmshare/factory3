@@ -50,6 +50,7 @@ static TMcPacket *NET_RecvPacket(void *dgramBuffer,int bufferSize){
    TMcMsg *msg=&packet->msg;
    int msgsize,sliceLen=hsk_readData(msg,bufferSize-sizeof(TMcPacket),&packet->peerAddr);
 
+   printf("recv %d bytes\n",sliceLen);
    #ifdef DEBUG_MODE
     Log_AppendData(msg,sliceLen,&packet->peerAddr,FALSE);
    #endif

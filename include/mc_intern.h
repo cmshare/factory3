@@ -64,6 +64,11 @@ typedef struct
   TMcPacket reqPacket;
 }TSuspendRequest;
 
+typedef struct _TUserList{
+ struct _TUserList *prev,*next;
+ TTerminal *terminal;
+}TUserList;
+
 /*
 typedef struct
 { U32 ack_msg,retry_counter;

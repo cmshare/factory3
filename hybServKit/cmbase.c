@@ -1348,6 +1348,13 @@ char *dtmr_getName(void *dnode){
   }else return NULL;
 }
 
+U32 dtmr_getMode(void *dnode){
+  if(dnode){
+    TDateTimerNode *tskNode=T_PARENT_NODE(TDateTimerNode,ExtraData,dnode);
+    return tskNode->mode;
+  }else return 0;
+}
+
 void dtmr_test(HAND htmr){
   TDateTimer *dtimer=(TDateTimer *)htmr;
   TDateTimerNode *timerlist=dtimer->_tsklist;
