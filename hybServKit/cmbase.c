@@ -1290,8 +1290,13 @@ void dtmr_unlock(void *dnode,U32 msUpdateLifeTime){
       if(dtimer && dtimer->magicNumber==DTMR_MAGIC_NUMBER){
         if(os_obtainSemphore(dtimer->_task_mutex)){
           if(msUpdateLifeTime){
-            tskNode->msLifeTime=msUpdateLifeTime;
-            if(tskNode->mode&DTMR_ENABLE)_DTMR_UpdateTimeout((TDateTimer *)dtimer,tskNode,msUpdateLifeTime);
+            if(msUpdateLifeTime==(U32)-1){//Á¢¿Ìµ½ÆÚ
+              _DTMR_UpdateTimeout((TDateTimer *)dtimer,tskNode,0);
+            }
+            else{
+              tskNode->msLifeTime=msUpdateLifeTime;
+              if(tskNode->mode&DTMR_ENABLE)_DTMR_UpdateTimeout((TDateTimer *)dtimer,tskNode,msUpdateLifeTime);
+            }
           }
           tskNode->mode&=~DTMR_LOCK;
           os_releaseSemphore(tskNode->semlock);
