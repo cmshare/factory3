@@ -163,7 +163,7 @@ void Handle_MSG_USR_CHANGENICK(TMcPacket *packet)
   msg_ack_general(packet,0);
 }
 
-
+/*
 void Handle_MSG_USR_GETBINDLIST(TMcPacket *packet){
   const int MAX_ITEM_SIZE=128;
   TMcMsg *ackmsg=msg_alloc(MSG_SUA_GETBINDLIST,sizeof(TMSG_SUA_GETBINDLIST)+MAX_BINDED_NUM*MAX_ITEM_SIZE);
@@ -188,7 +188,7 @@ void Handle_MSG_USR_GETBINDLIST(TMcPacket *packet){
   ackmsg->bodylen=sizeof(TMSG_SUA_GETBINDLIST)+jslen;//重新计算实际消息体长度。
   msg_send(ackmsg,packet,NULL);
 }
-
+*/
 
 void Handle_MSG_USR_CONFIGS(TMcPacket *packet)
 {/////////////////////////////////////////////

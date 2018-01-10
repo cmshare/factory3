@@ -32,10 +32,10 @@
 
 #define MSG_TSR_HEARTBEAT         0x00000006    //手机、终端心跳请求，返回服务器通用应答。
 
-#define MSG_USR_GETBINDLIST       0x00000007   //读取绑定lab列表
-#define MSG_SUA_GETBINDLIST       (MSG_USR_GETBINDLIST|MSG_ACK_GENERAL)
+#define MSG_SUR_POSTDATA          0x00000007    //发送定位数据包（不要求应答）
 
-#define MSG_SUR_POSTDATA          0x00000008    //发送定位数据包（不要求应答）
+#define MSG_USR_GETBINDLIST       0x00000008   //读取绑定lab列表
+#define MSG_SUA_GETBINDLIST       (MSG_USR_GETBINDLIST|MSG_ACK_GENERAL)
 
 #define MSG_USR_GETCONFIG         0x00000009   //读取lab配置参数
 #define MSG_SUA_GETCONFIG         (MSG_USR_GETCONFIG|MSG_ACK_GENERAL)
@@ -92,8 +92,8 @@
 #define MSG_VSR_GETBINDUSER       0x00000022   //手机查询终端绑定情况请求
 #define MSG_SVA_GETBINDUSER       (MSG_VSR_GETBINDUSER|MSG_ACK_GENERAL)    //手机查询终端绑定情况响应
 
-#define MSG_USR_GETBINDLIST       0x00000023   //手机查询绑定列表请求
-#define MSG_SUA_GETBINDLIST       (MSG_USR_GETBINDLIST|MSG_ACK_GENERAL)    //手机查询绑定列表响应
+//#define MSG_USR_GETBINDLIST       0x00000023   //手机查询绑定列表请求
+//#define MSG_SUA_GETBINDLIST       (MSG_USR_GETBINDLIST|MSG_ACK_GENERAL)    //手机查询绑定列表响应
  
 #define MSG_USR_QUERY_GPS         0x00000049 //手机查询终端final location  (手机-->服务器)
 #define MSG_SUA_QUERY_GPS         (MSG_USR_QUERY_GPS|MSG_ACK_GENERAL) //响应
@@ -211,7 +211,7 @@ typedef struct
 }TMSG_DSR_LOGIN;
 
 typedef struct
-{ char name[MAXLEN_USER_NAME+1],passwd[SIZE_MD5+1];
+{ char name[MAXLEN_USERNAME+1],passwd[SIZE_MD5+1];
 }TMSG_USR_LOGIN;
 
 typedef struct{
@@ -220,7 +220,7 @@ typedef struct{
 }TMSG_ACK_GENERAL;//,TMSG_SVA_LIVE_RET,TMSG_SUA_VERIFYCODE,TMSG_SUA_REGIST,TMSG_SUA_CHANGEPSW,TMSG_SDA_NOTIFY_STATE,TMSG_USA_NOTIFY_STATE,TMSG_SDA_NOTIFY_STRIKE,TMSG_USA_NOTIFY_STRIKE,TMSG_SUA_WAKEUP,TMSG_DSA_WAKEUP,TMSG_USA_LIVE,TMSG_VSA_LIVE,TMSG_SDA_SYNC,TMSG_USA_LIVE_RET,TMSG_SDA_UPLOAD_GPS,TMSG_SDA_UPLOAD_BEHAVIOR,TMSG_SDA_UPLOAD_IMSI/*,TMSG_SDA_UPLOAD_ICCID*/;
 
 typedef struct{
-  U32  labID;
+  U32  tagID;
   U16  fps;
   U16  coordCount;
   U32  coordArray[];
@@ -292,7 +292,7 @@ typedef struct
 typedef struct
 { U32  ack_synid;
   T_VARDATA json;
-}TMSG_SUA_CONFIGS,TMSG_SUA_QUERY_VERSION,TMSG_SUA_GETBINDLIST;
+}TMSG_SUA_CONFIGS,TMSG_SUA_QUERY_VERSION;
 
 
 typedef struct
