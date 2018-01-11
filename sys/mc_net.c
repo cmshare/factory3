@@ -92,7 +92,7 @@ static void *mc_dispatch_proc(void *param){
         mc_dispatchmsg(packet);
   	//((void (*)(TMcPacket *))param)(packet);
         if(packet->peerAddr.socket!=svrUdpSocket){
-    	   hsk_releaseTcpPacket((THskPacket *)packet,(packet!=pbuf),packet->msg.tcp_short_connection);
+    	   hsk_releaseTcpPacket((THskPacket *)packet,(packet!=pbuf),packet->msg.tcpshortconn);
         }
     }	
   }

@@ -965,10 +965,11 @@ struct _TDateTimerNode
 };
 
 static void _DTMR_UpdateTimeout(TDateTimer *ttasks,TDateTimerNode *node,U32 msLifeTime)
-{ TDateTimerNode *listhead=ttasks->_tsklist;
+{ TDateTimerNode *dummyHead=ttasks->_tsklist;
+  TDateTimerNode *firstNode=dummyHead->next;
   U32 msTimeOut=(msLifeTime)?(os_msRunTime()+msLifeTime):0;
   node->msTimeOut=msTimeOut;
-  if(node==listhead->next && (node->next==listhead || msTimeOut<=node->next->msTimeOut))
+  if(node==firstNode && (node->next==dummyHead || msTimeOut<=node->next->msTimeOut))
   { //本身就在表头，且时间排序不用调整。
      os_releaseSemphore(ttasks->_sem_timer);//头部节点的时间调整后要发信号量
   }
@@ -977,12 +978,12 @@ static void _DTMR_UpdateTimeout(TDateTimer *ttasks,TDateTimerNode *node,U32 msLi
     if(node!=node->next) BINODE_REMOVE(node,prev,next);
 
     //重新插入横向环形双向链表（按时间排列）
-    if(msTimeOut<=listhead->next->msTimeOut)
-    { BINODE_INSERT(node,listhead,next,prev);
+    if(dummyHead==firstNode || msTimeOut<=firstNode->msTimeOut)
+    { BINODE_INSERT(node,dummyHead,next,prev);
       os_releaseSemphore(ttasks->_sem_timer);//头部节点的时间调整后要发信号量
     }
     else
-    { TDateTimerNode *lastNode=listhead->prev;
+    { TDateTimerNode *lastNode=dummyHead->prev;
       while(msTimeOut<lastNode->msTimeOut)
       { lastNode=lastNode->prev;
       }
@@ -1367,7 +1368,7 @@ void dtmr_test(HAND htmr){
   int now_time=os_msRunTime();
   extern void MemoPrint(const char *format, ...);
   for(node=timerlist->next;node!=timerlist; node=node->next){
-    printf("ID:%d_%d, mode=%x, dutime=%d, next=%x,pre=%x\r\n",node->nodeID[0],node->nodeID[1],node->mode,(node->msTimeOut-now_time)/1000, (int)node->next,(int)node->prev);
+   // std_printf("ID:%d_%d, mode=%x, dutime=%ds, next=%x,pre=%x\r\n",node->nodeID[0],node->nodeID[1],node->mode,(node->msTimeOut>now_time)?((node->msTimeOut-now_time)/1000):0, (int)node->next,(int)node->prev);
   }
 }
 

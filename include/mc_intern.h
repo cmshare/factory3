@@ -2,7 +2,7 @@
 #ifndef _MC_INTERN_H
 #define _MC_INTERN_H
 //---------------------------------------------------------------------------
-enum{TT_USER=0,TT_DEVICE=1,TT_BOX=2};
+enum{TT_USER=1,TT_DEVICE=2,TT_BOX=3};
 enum{UDP=0,TCP=1};
 //enum{SESSION_NULL=0,SESSION_OFFLINE=1,SESSION_RESEARVED1,SESSION_RESEARVED2,MIN_SESSIONID=10};
 //如果用户的sessionid为0表示该用户已经删除/不存在，为1表示离线;大于等于MIN_SESSIONID表示在线。
@@ -29,9 +29,11 @@ typedef struct{
   char name[0];
 }TTerminal;
 
-typedef struct
+typedef struct _TTermUser
 { TTerminal terminal;
   char username[SIZE_MOBILE_PHONE+1];
+  void *listeningLab;
+  TBinodeLink listens;
 }TTermUser;
 
 typedef struct
@@ -44,11 +46,10 @@ typedef struct
 typedef struct
 { U32 msgid;
   U32 sessionid; //会话ID：登录后服务器将为其分配一个唯一的session的ID。
-  U32 synid;     //流水号：按发送顺序从 0 开始循环累加
+  U32 synid:29;     //流水号：按发送顺序从 0 开始循环累加
+  U32 encrypt:2;   //消息体加密方式(0：不加密 1：AES)
+  U32 tcpshortconn:1;//是否在完成tcp应答后关闭tcp连接
   U32 bodylen;    //消息体长度
-  U8  encrypt:2;               //消息体加密方式(0：不加密 1：AES)
-  U8  reserved:5;
-  U8  tcp_short_connection:1;   //是否在完成tcp应答后关闭tcp连接
   U8  body[0];   //消息体内容
 }TMcMsg;
 
@@ -64,12 +65,12 @@ typedef struct
   TMcPacket reqPacket;
 }TSuspendRequest;
 
+/*
 typedef struct _TUserList{
  struct _TUserList *prev,*next;
  TTerminal *terminal;
 }TUserList;
 
-/*
 typedef struct
 { U32 ack_msg,retry_counter;
 	TTerminal *terminal;

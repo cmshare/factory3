@@ -50,7 +50,7 @@ static void terminal_HbTimeout(HAND ttasks,void *taskCode,U32 *taskID,char *task
     case TT_DEVICE:{//device
              //释放session,并修改终端state(确定全套系统离线).
              TNetAddr *peerAddr=&terminal->loginAddr;
-             db_queryf("update uwb_anchor set session=0,logouttime=unix_timestamp() where id=%u",terminal->id);
+             db_queryf("update uwb_anchor set sessionid=0,logouttime=unix_timestamp() where id=%u",terminal->id);
              terminal->term_state=DEV_STATE_OFFLINE;
              if(hsk_isTcpSocket(peerAddr->socket)) shutdown(peerAddr->socket,2);
              terminal->loginAddr.socket=0;//mark disconnected
@@ -59,7 +59,7 @@ static void terminal_HbTimeout(HAND ttasks,void *taskCode,U32 *taskID,char *task
          }
          break;
     case TT_USER: //user
-           db_queryf("update `mc_users` set session=0,logouttime=unix_timestamp() where id=%u",terminal->id);
+           db_queryf("update `mc_users` set sessionid=0,logouttime=unix_timestamp() where id=%u",terminal->id);
            UWBLab_removeUser(terminal);
          break;
   }
@@ -91,7 +91,7 @@ void terminal_init(void)
   U32 local_UdpSocket=hsk_getUdpSocket();
   terminalLinks=dtmr_create(1024,HEARTBEAT_OVERTIME_MS,terminal_HbTimeout);
   commDataLinks=dtmr_create(0,60,NULL);
-  res=db_query("select id,username,session,ip,port,groupid,sex,msgpush,livepush from `mc_users` where session<>0");
+  res=db_query("select id,username,sessionid,ip,port,groupid,sex,msgpush,livepush from `mc_users` where sessionid<>0");
   if(res)
   { MYSQL_ROW row;
     while((row = mysql_fetch_row(res)))
@@ -113,7 +113,7 @@ void terminal_init(void)
     mysql_free_result(res); 
   }
 
-  res=db_query("select id,sn,session,ip,port,groupid,state,boxid,logintime from `mc_devices` where session<>0");
+  res=db_query("select id,sn,sessionid,ip,port,groupid,state,boxid,logintime from `mc_devices` where sessionid<>0");
   if(res)
   { MYSQL_ROW row;
     while((row = mysql_fetch_row(res)))

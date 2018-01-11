@@ -29,7 +29,9 @@ typedef unsigned short    U16;
 typedef unsigned char     U8;
 typedef short             S16;
 typedef struct{S16 socket;U16 port;U32 ip;}TNetAddr;
+typedef struct t_binode_link{struct t_binode_link *prev,*next;}TBinodeLink;
 #define T_NODE_OFFSET(TStruct,NodeName)  ((char *)(&((TStruct *)0)->NodeName)-(char *)0)
+#define T_PARENT_NODE(TParent,ChildName,IChild) (TParent *)((char *)(IChild)-(char *)(&((TParent *)0)->ChildName))
 #define TRUE             -1
 #define FALSE             0
 //---------------------------------------------------------------------------

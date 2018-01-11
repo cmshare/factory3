@@ -34,20 +34,19 @@
 
 #define MSG_SUR_POSTDATA          0x00000007    //发送定位数据包（不要求应答）
 
-#define MSG_USR_GETBINDLIST       0x00000008   //读取绑定lab列表
+#define MSG_USR_SWITCHLAB         0x00000008   //切换Lab监听
+
+#define MSG_USR_GETBINDLIST       0x00000009   //读取绑定lab列表
 #define MSG_SUA_GETBINDLIST       (MSG_USR_GETBINDLIST|MSG_ACK_GENERAL)
 
-#define MSG_USR_GETCONFIG         0x00000009   //读取lab配置参数
+#define MSG_USR_GETCONFIG         0x0000000A   //读取lab配置参数
 #define MSG_SUA_GETCONFIG         (MSG_USR_GETCONFIG|MSG_ACK_GENERAL)
 
-#define MSG_USR_SETCONFIG         0x0000000A   //设置lab配置参数（手动标定）
+#define MSG_USR_SETCONFIG         0x0000000B   //设置lab配置参数（手动标定）
 #define MSG_SUA_SETCONFIG         (MSG_USR_SETCONFIG|MSG_ACK_GENERAL)
 
-#define MSG_USR_CALIBRATION       0x0000000B   //请求自动标定
+#define MSG_USR_CALIBRATION       0x0000000C   //请求自动标定
 #define MSG_SUA_CALIBRATION       (MSG_USR_CALIBRATION|MSG_ACK_GENERAL)
-
-
-
 
 #define MSG_BSR_NOTIFY            0x00008001    //WEB管理平台(浏览器)通知服务器后台服务
 
