@@ -50,7 +50,7 @@ static TMcPacket *NET_RecvPacket(void *dgramBuffer,int bufferSize){
    TMcMsg *msg=&packet->msg;
    int msgsize,sliceLen=hsk_readData(msg,bufferSize-sizeof(TMcPacket),&packet->peerAddr);
 
-   printf("recv %d bytes\n",sliceLen);
+  // printf("recv %d bytes\n",sliceLen);
    #ifdef DEBUG_MODE
     Log_AppendData(msg,sliceLen,&packet->peerAddr,FALSE);
    #endif
@@ -111,7 +111,7 @@ static void *uwb_location_proc(void *param){
 }
 //---------------------------------------------------------------------------
 void Handle_MSG_TSR_HEARTBEAT(TMcPacket *packet){
-  printf("heatbeat\n");
+ // printf("heatbeat\n");
   dtmr_update(packet->terminal,HEARTBEAT_OVERTIME_MS,DTMR_TIMEOUT_DELETE|DTMR_ENABLE);
   msg_ack_general(packet,0);
 }
@@ -134,7 +134,7 @@ void net_init(void){
        int udp_port_array[]={SERVICE_UWB_PORT1,SERVICE_UWB_PORT2,SERVICE_UWB_PORT3};
        svrUdpSocket=hsk_getUdpSocket();
        svrTcpSocket=hsk_getTcpSocket();
-       printf("svrUdpSocket=%d,svrTcpSocket=%d\r\n",svrUdpSocket,svrTcpSocket);
+  //     printf("svrUdpSocket=%d,svrTcpSocket=%d\r\n",svrUdpSocket,svrTcpSocket);
        SetSocketBuffer(svrUdpSocket,MAX_SOCKET_RECV_MEM,MAX_SOCKET_SEND_MEM);
        SetSocketBuffer(svrTcpSocket,MAX_SOCKET_RECV_MEM,MAX_SOCKET_SEND_MEM);
        hsk_append_udp(udp_port_array,3,SIZE_UWB_RECV_BUFFER);

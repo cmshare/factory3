@@ -14,39 +14,42 @@
 #define MSG_ACK_MASK              0x80000000    //服务器通用应答
 #define MSG_ACK_GENERAL           MSG_ACK_MASK     //服务器通用应答
 
+#define MSG_TSR_HEARTBEAT         0x00000001    //手机、终端心跳请求，返回服务器通用应答。
+
 //#define MSG_SUR_NOTIFY_MSGBOX    0x00000001    //服务器事件通知请求
 //#define MSG_USA_NOTIFY_MSGBOX    (MSG_SUR_NOTIFY_MSGBOX|MSG_ACK_GENERAL) 
-#define MSG_DSR_LOGIN             0x00000001    //终端设备登录请求
+
+#define MSG_DSR_LOGIN             0x00000002    //终端设备登录请求
 #define MSG_SDA_LOGIN             (MSG_DSR_LOGIN|MSG_ACK_GENERAL)  //终端登录响应
 
-#define MSG_USR_LOGIN             0x00000002    //手机用户登录请求
-#define MSG_SUA_LOGIN             (MSG_USR_LOGIN|MSG_ACK_GENERAL)  //用户登录响应
 
-#define MSG_USR_LOGOUT            0x00000003   //手机注销请求，返回服务器通用应答。
-
-#define MSG_SUR_KICKOFF           0x00000004  //服务器将用户踢下线
-#define MSG_USA_KICKOFF           (MSG_SUR_KICKOFF|MSG_ACK_GENERAL)
-
-#define MSG_USR_REGIST            0x00000005   //手机注册账号请求
+#define MSG_USR_REGIST            0x0000F001   //手机注册账号请求
 #define MSG_SUA_REGIST            (MSG_USR_REGIST|MSG_ACK_GENERAL)  //手机注册账号响应
 
-#define MSG_TSR_HEARTBEAT         0x00000006    //手机、终端心跳请求，返回服务器通用应答。
+#define MSG_USR_LOGIN             0x0000F002    //手机用户登录请求
+#define MSG_SUA_LOGIN             (MSG_USR_LOGIN|MSG_ACK_GENERAL)  //用户登录响应
 
-#define MSG_SUR_POSTDATA          0x00000007    //发送定位数据包（不要求应答）
+#define MSG_USR_LOGOUT            0x0000F003   //手机注销请求，返回服务器通用应答。
 
-#define MSG_USR_SWITCHLAB         0x00000008   //切换Lab监听
+#define MSG_SUR_KICKOFF           0x0000F004  //服务器将用户踢下线
+#define MSG_USA_KICKOFF           (MSG_SUR_KICKOFF|MSG_ACK_GENERAL)
 
-#define MSG_USR_GETBINDLIST       0x00000009   //读取绑定lab列表
+#define MSG_USR_SWITCHLAB         0x0000F007   //切换Lab监听
+
+#define MSG_SUR_POSTDATA          0x0000F008    //发送定位数据包（不要求应答）
+
+#define MSG_USR_GETBINDLIST       0x0000F009   //读取绑定lab列表
 #define MSG_SUA_GETBINDLIST       (MSG_USR_GETBINDLIST|MSG_ACK_GENERAL)
 
-#define MSG_USR_GETCONFIG         0x0000000A   //读取lab配置参数
+#define MSG_USR_GETCONFIG         0x0000F00A   //读取一个指定lab的配置参数
 #define MSG_SUA_GETCONFIG         (MSG_USR_GETCONFIG|MSG_ACK_GENERAL)
 
-#define MSG_USR_SETCONFIG         0x0000000B   //设置lab配置参数（手动标定）
+#define MSG_USR_SETCONFIG         0x0000F00B   //设置lab配置参数（手动标定）
 #define MSG_SUA_SETCONFIG         (MSG_USR_SETCONFIG|MSG_ACK_GENERAL)
 
-#define MSG_USR_CALIBRATION       0x0000000C   //请求自动标定
+#define MSG_USR_CALIBRATION       0x0000F00C   //请求自动标定
 #define MSG_SUA_CALIBRATION       (MSG_USR_CALIBRATION|MSG_ACK_GENERAL)
+
 
 #define MSG_BSR_NOTIFY            0x00008001    //WEB管理平台(浏览器)通知服务器后台服务
 
