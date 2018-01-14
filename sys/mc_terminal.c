@@ -61,6 +61,7 @@ static void terminal_HbTimeout(HAND ttasks,void *taskCode,U32 *taskID,char *task
     case TT_USER: //user
            db_queryf("update `mc_users` set sessionid=0,logouttime=unix_timestamp() where id=%u",terminal->id);
            UWBLab_removeUser(terminal);
+           printf("user offline:%s\n",terminal->name);
          break;
   }
   DBLog_AppendData("\xFF\xFF\xFF\xFF\x01",5,terminal); //超时登出日志
