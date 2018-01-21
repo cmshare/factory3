@@ -14,7 +14,7 @@ BOOL MobilePhone_check(char *number)
 BOOL Password_check(char *number)
 { if(number)
   { int i;
-    for(i=0;i<=MAXLEN_PASSWORD;i++)
+    for(i=0;i<=SIZE_MD5;i++)
     { if(number[i]==' ' || number[i]=='\'' || number[i]=='"' || number[i]=='<' || number[i]=='>')return FALSE;
       else if(number[i]=='\0')break;
     }

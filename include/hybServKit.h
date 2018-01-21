@@ -69,6 +69,8 @@ int    mb_receive(void *msgBuf,int bufSize);
 //---------------------------------------------------------------------------		
 //Others
 //---------------------------------------------------------------------------		
-U32    os_msRunTime(void);
+void    mem_asyncfree(void *mem,int msDelay);
+void    async_exec(void (*asyncTask)(void *),void *param,int msDelay);
+void   mem_asyncfree(void *mem,int msDelay);
 //---------------------------------------------------------------------------		
 #endif

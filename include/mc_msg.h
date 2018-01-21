@@ -22,6 +22,8 @@
 #define MSG_DSR_LOGIN             0x00000002    //终端设备登录请求
 #define MSG_SDA_LOGIN             (MSG_DSR_LOGIN|MSG_ACK_GENERAL)  //终端登录响应
 
+#define MSG_SDR_KICKOFF           0x00000004  //服务器将基站踢下线或者通知sessionid失效
+#define MSG_USA_KICKOFF           (MSG_SDR_KICKOFF|MSG_ACK_GENERAL)
 
 #define MSG_USR_REGIST            0x0000F001   //手机注册账号请求
 #define MSG_SUA_REGIST            (MSG_USR_REGIST|MSG_ACK_GENERAL)  //手机注册账号响应

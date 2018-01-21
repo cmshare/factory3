@@ -7,7 +7,7 @@ enum{UDP=0,TCP=1};
 //enum{SESSION_NULL=0,SESSION_OFFLINE=1,SESSION_RESEARVED1,SESSION_RESEARVED2,MIN_SESSIONID=10};
 //如果用户的sessionid为0表示该用户已经删除/不存在，为1表示离线;大于等于MIN_SESSIONID表示在线。
 enum{ENCRYPTION_NONE=0,ENCRYPTION_AES128=1,ENCRYPTION_RAS1024=2};
-enum{DEV_STATE_OFFLINE=0,DEV_STATE_SLEEP,DEV_STATE_WAKEUP,DEV_STATE_ONLINE,DEV_STATE_GOTOSLEEP,DEV_STATE_STARTING,DEV_STATE_CRUISE,DEV_EVENT_ENGINEOFF};
+enum{DEV_STATE_OFFLINE=0,DEV_STATE_ONLINE};
 //---------------------------------------------------------------------------
 #define SERVER_DYNAMIC_SESSION(msg)      ~((msg)->msgid+(msg)->synid)
 #define MC_MSG_SIZE(msg)                  (sizeof(TMcMsg)+(msg)->bodylen+1)
@@ -17,7 +17,7 @@ enum{DEV_STATE_OFFLINE=0,DEV_STATE_SLEEP,DEV_STATE_WAKEUP,DEV_STATE_ONLINE,DEV_S
 #pragma pack (push,1)
 //---------------------------------------------------------------------------
 typedef struct{
-  U32  id,session;
+  U32  id,sessionid;
   TNetAddr loginAddr;
   //以下位域结构必须定义成无符号类型，否则一位的1会被编译器解释成-1。 
   U32 group:8;//分设备类型	

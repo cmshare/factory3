@@ -345,6 +345,27 @@ void mem_reverse(void *p_buf,int dLen)
   }
 }
 
+typedef struct {HAND taskHandle;void (*asyncfunc)(void *);void *param;int msDelay;}TAsycExecConfig;
+static void *thread_asyncexec_proc(void *param){
+  TAsycExecConfig *asycExec=(TAsycExecConfig *)param;
+  os_msSleep(asycExec->msDelay);
+  asycExec->asyncfunc(asycExec->param);
+  free(param);
+  return NULL;
+}
+
+void async_exec(void (*asyncTask)(void *),void *param,int msDelay){
+  TAsycExecConfig *asycExec=(TAsycExecConfig *)malloc(sizeof(TAsycExecConfig));
+  asycExec->param=param;
+  asycExec->msDelay=msDelay;
+  asycExec->asyncfunc=asyncTask;
+  os_createThread(&asycExec->taskHandle,thread_asyncexec_proc,asycExec);
+}
+
+void mem_asyncfree(void *mem,int msDelay){
+  async_exec(free,mem,msDelay);
+}
+
 void exit_with_exception(char *errmsg){
   if(errmsg)printf("\n%s\n",errmsg);
   abort();//force core dump

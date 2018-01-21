@@ -36,7 +36,7 @@ void staticMap_generate(TTerminal *terminal){
    // if(strcmp(terminal->name,"CAM-019522FF18000098")==0) printf("##########[%s]EngineOff...start_time:%u,end_time:%u,duration=%0.1f*60s\r\n\r\n",terminal->name,start_time,end_time,(float)duration/60);
   if(duration>60 && duration<24*60*60){
     char xml[255];
-    int xmlLen=sprintf(xml,"<xml><action>create</action><device>%s</device><starttime>%u</starttime><endtime>%u</endtime><session>%u</session></xml>",terminal->name,start_time,end_time,terminal->session);
+    int xmlLen=sprintf(xml,"<xml><action>create</action><device>%s</device><starttime>%u</starttime><endtime>%u</endtime><session>%u</session></xml>",terminal->name,start_time,end_time,terminal->sessionid);
     int ret=hsk_httpPost("http://"WEB_SERVER_HOST"/service/routine/trackmap.php",xml,xmlLen,NULL,0,6);
     //printf("####POST xml:%s  ########ret=%d\r\n",xml,ret);
   }
@@ -50,10 +50,11 @@ static void terminal_HbTimeout(HAND ttasks,void *taskCode,U32 *taskID,char *task
     case TT_DEVICE:{//device
              //释放session,并修改终端state(确定全套系统离线).
              TNetAddr *peerAddr=&terminal->loginAddr;
-             db_queryf("update uwb_anchor set sessionid=0,logouttime=unix_timestamp() where id=%u",terminal->id);
              terminal->term_state=DEV_STATE_OFFLINE;
+             db_queryf("update uwb_anchor set sessionid=0,logouttime=unix_timestamp() ,state=%d where id=%u",DEV_STATE_OFFLINE,terminal->id);
              if(hsk_isTcpSocket(peerAddr->socket)) shutdown(peerAddr->socket,2);
              terminal->loginAddr.socket=0;//mark disconnected
+             UWBLab_logoutAnchor(terminal);
              //device_stateNotifyUser(terminal,0);//通知绑定手机终端摄像头已离线
            //staticMap_generate(terminal);
          }
@@ -100,7 +101,7 @@ void terminal_init(void)
       TTerminal *node=(TTerminal *)dtmr_add(terminalLinks,sessionid,0,0,NULL,sizeof(TTermUser),HEARTBEAT_OVERTIME_MS,&dtmrOptions);
       if(node)
       { node->term_type=TT_USER;
-        node->session=sessionid;
+        node->sessionid=sessionid;
         node->loginAddr.socket=local_UdpSocket;
         node->id=atoi(row[0]);//field["id"]
         strncpy(node->name,row[1],SIZE_MOBILE_PHONE+1);//field["username"]
@@ -122,7 +123,7 @@ void terminal_init(void)
       TTerminal *node=(TTerminal *)dtmr_add(terminalLinks,sessionid,0,0,NULL,sizeof(TTermDevice),HEARTBEAT_OVERTIME_MS,&dtmrOptions);
       if(node)
       { node->term_type=TT_DEVICE;
-        node->session=sessionid; 
+        node->sessionid=sessionid; 
         node->loginAddr.socket=local_UdpSocket;
         node->id=atoi(row[0]);//field["id"]
         strncpy(node->name,row[1],SIZE_SN_DEVICE+1);//field["sn"]

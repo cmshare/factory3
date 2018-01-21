@@ -31,7 +31,8 @@ typedef unsigned __int64   U64;
 #define os_closeSocket(s)                               closesocket(s)
 #define os_sockopt_t                                    char
 #define os_socklen_t                                    int
-#define os_msRunTime                                   GetTickCount
+#define os_msSleep                                      Sleep
+#define os_msRunTime                                    GetTickCount
 //---------------------------------------------------------------------------
 #elif (__linux__ && __x86_64__)
 //---------------------------------------------------------------------------
@@ -61,6 +62,9 @@ U32     os_msRunTime(void);
 #define os_closeSocket(s)                               close(s)
 #define os_sockopt_t                                    void
 #define os_socklen_t                                    socklen_t
+#define os_sSleep                                       sleep                 //单位秒
+#define os_msSleep(ms)                                  usleep((ms)*1000)
+#define os_usSleep                                      usleep                //单位微妙秒
 //---------------------------------------------------------------------------
 #endif
 //------------------------------------------------------------------------------------------
@@ -157,6 +161,8 @@ U8     mem_XOR(void *data,int dataLen);
 void   mem_MD5(void* data,int dataLen,U8 ret[16]);
 void  *mem_search(void *srcMem,int memSize,void *desData,int dataSize);
 void   mem_reverse(void *p_buf,int dLen);
+void   mem_asyncfree(void *mem,int msDelay);
+void   async_exec(void (*asyncTask)(void *),void *param,int msDelay);
 void   exit_with_exception(char *errmsg);
 //---------------------------------------------------------------------------
 // QueueBuffer
