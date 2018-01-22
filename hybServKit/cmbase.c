@@ -315,6 +315,30 @@ char  *str_keySeek(char *keyList,char *key,char splitter)
   return NULL;
 }
 
+//从分割符表示的字符串列表中查找指定字符串是否存在，返回字符串地址
+//char *ret=str_keySeek("11,111,1111,11111,222222,2222,22,2","111",',');
+char  *str_itemSeek(char *itemlist,char *item,char splitter){
+  if(itemlist && item){
+    char *p,ch1,ch2;
+    label_next:
+    for(p=item,ch1=*itemlist,ch2=*p;ch1==ch2;ch1=*++itemlist,ch2=*++p){
+      if(ch1=='\0')goto label_matched;
+    }
+    if(ch2=='\0' && ch1==splitter){
+      label_matched:
+      return itemlist-(int)(p-item);
+    }
+    while(ch1!=splitter){
+      if(ch1=='\0')return NULL;
+      else ch1=*++itemlist;
+    }
+    itemlist++;//jump over splitter
+    goto label_next;
+
+  }
+  return NULL;
+}
+
 /*从内存中查找一个数组，并返回首指针，若没有找到则返回NULL*/
 void *mem_search(void *srcMem,int memSize,void *desData,int dataSize)
 { int i,state;

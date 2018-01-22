@@ -34,6 +34,7 @@ typedef struct _TTermUser
   char username[SIZE_MOBILE_PHONE+1];
   void *currentLab;
   TBinodeLink listenLinker;
+  char bindedLabIDs[1];
 }TTermUser;
 
 typedef struct

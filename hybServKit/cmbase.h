@@ -149,6 +149,7 @@ char  *stristr(char *src,char *obj); //×Ö·û´®ËÑË÷£¨ºöÂÔ´óĞ¡Ğ´£©
 int    str_lenOfUTF8(char *str);//¼ÆËãstr×Ö·ûÊıÄ¿
 char  *str_xmlSeek(char *xmlbuf,char *key,int *len);
 char  *str_keySeek(char *keyList,char *key,char splitter);
+char  *str_itemSeek(char *itemlist,char *item,char splitter);
 int    str_fromTime(char *strTime,char *format,time_t timestamp);
 time_t str_toTime(char *strTime,char *format);
 int    tm_getLocalHour(time_t timestamp);//get local hour from unix timestamp;

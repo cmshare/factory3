@@ -60,7 +60,7 @@ static void terminal_HbTimeout(HAND ttasks,void *taskCode,U32 *taskID,char *task
          }
          break;
     case TT_USER: //user
-           db_queryf("update `mc_users` set sessionid=0,logouttime=unix_timestamp() where id=%u",terminal->id);
+           db_queryf("update `uwb_user` set sessionid=0,logouttime=unix_timestamp() where id=%u",terminal->id);
            UWBLab_logoutUser(terminal);
            printf("user offline:%s\n",terminal->name);
          break;
@@ -93,7 +93,7 @@ void terminal_init(void)
   U32 local_UdpSocket=hsk_getUdpSocket();
   terminalLinks=dtmr_create(1024,HEARTBEAT_OVERTIME_MS,terminal_HbTimeout);
   commDataLinks=dtmr_create(0,60,NULL);
-  res=db_query("select id,username,sessionid,ip,port,groupid,sex,msgpush,livepush from `mc_users` where sessionid<>0");
+  res=db_query("select id,username,sessionid,ip,port,groupid,sex from `uwb_user` where sessionid<>0");
   if(res)
   { MYSQL_ROW row;
     while((row = mysql_fetch_row(res)))
@@ -109,7 +109,6 @@ void terminal_init(void)
         node->loginAddr.port=atoi(row[4]);//field["port"]
         node->group=atoi(row[5]);//field["groupid"]
         node->sex_type=atoi(row[6]);//field["sex"]
-        node->msg_push_acceptable=atoi(row[7]);//field["msgpush"]
       }
     }   
     mysql_free_result(res); 

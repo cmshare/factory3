@@ -27,6 +27,7 @@ int    hsk_httpPost(char *URL,void *formData,int formSize,char *responseBuffer,i
 int    hsk_httpGet(char *URL,char *responseBuffer,int buffersize,int sTimeout);
 BOOL   hsk_isTcpSocket(int socket);
 char  *str_xmlSeek(char *xmlbuf,char *key,int *len);
+char  *str_itemSeek(char *itemlist,char *item,char splitter);
 int    str_lenOfUTF8(char *str);
 int    str_fromTime(char *strTime,char *format,time_t timestamp);
 time_t str_toTime(char *strTime,char *format);
