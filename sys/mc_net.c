@@ -27,7 +27,7 @@ static BOOL packet_checksum_and_decrypt(TMcPacket *packet){
   TMcMsg *msg=&packet->msg;
   int msgLen=MC_MSG_SIZE(msg);
   if(msg_ValidChecksum(msg,msgLen)){
-    TTerminal *terminal=(msg->sessionid)?(TTerminal *)dtmr_find(terminalLinks,msg->sessionid,0,NULL,FALSE):NULL;
+    TTerminal *terminal=(msg->sessionid)?(TTerminal *)dtmr_findById(terminalLinks,msg->sessionid,FALSE):NULL;
     if(terminal){
       //分配的sessionid与IP地址是绑定的关系，如果不对应表示sessionid已经失效。
       //TCP与UDP有不同的端口，但是这里只验证UDP端口的绑定关系；

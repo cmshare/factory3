@@ -362,7 +362,7 @@ void async_exec(void (*asyncTask)(void *),void *param,int msDelay){
   os_createThread(&asycExec->taskHandle,thread_asyncexec_proc,asycExec);
 }
 
-void mem_asyncfree(void *mem,int msDelay){
+void async_free(void *mem,int msDelay){
   async_exec(free,mem,msDelay);
 }
 
@@ -1121,7 +1121,7 @@ void *dtmr_add(HAND dtimer,U32 nodeIDL,U32 nodeIDH,char *nodeName,void *nodeData
     }
     if(dataSize){
        if(nodeData)memcpy(node->ExtraData,nodeData,dataSize);
-       else memset(node->ExtraData,0,dataSize);//安全起见要清零
+       //else memset(node->ExtraData,0,dataSize);//安全起见要清零
     }
     node->mode=mode;
     node->msLifeTime=msLifeTime;
@@ -1210,7 +1210,7 @@ void *dtmr_findByName(HAND dtimer,char *nodeName,BOOL addLock){
   return NULL;
 }
 
-void *dtmr_findById(HAND dtimer,U32 nodeIDL,U32 nodeIDH,BOOL addLock){
+void *dtmr_findByID(HAND dtimer,U32 nodeIDL,U32 nodeIDH,BOOL addLock){
   label_start:
   if(dtimer && (nodeIDL || nodeIDH) &&((TDateTimer *)dtimer)->magicNumber==DTMR_MAGIC_NUMBER && os_obtainSemphore(((TDateTimer *)dtimer)->_task_mutex)){
     TDateTimerNode *header,*node;
@@ -1225,6 +1225,37 @@ void *dtmr_findById(HAND dtimer,U32 nodeIDL,U32 nodeIDH,BOOL addLock){
             os_obtainSemphore(((TDateTimer *)dtimer)->_task_mutex);
             //以下为了防止中断期间被删除
             if(node->nodeID[0]!=nodeIDL || node->nodeID[1]!=nodeIDH){
+              os_releaseSemphore(node->semlock);
+              os_releaseSemphore(((TDateTimer *)dtimer)->_task_mutex);
+              goto label_start;
+            }
+          }
+          node->mode|=DTMR_LOCK;
+        }
+        os_releaseSemphore(((TDateTimer *)dtimer)->_task_mutex);
+        return node->ExtraData;
+      }
+    }
+    os_releaseSemphore(((TDateTimer *)dtimer)->_task_mutex);
+  }
+  return NULL;
+}
+
+void *dtmr_findById(HAND dtimer,U32 nodeIDL,BOOL addLock){
+  label_start:
+  if(dtimer && nodeIDL &&((TDateTimer *)dtimer)->magicNumber==DTMR_MAGIC_NUMBER && os_obtainSemphore(((TDateTimer *)dtimer)->_task_mutex)){
+    TDateTimerNode *header,*node;
+    int mIndex=nodeIDL % ((TDateTimer *)dtimer)->hashMapLength;
+    header=(TDateTimerNode *)(((TDateTimer *)dtimer)->_hashMapTable+mIndex);
+    for(node=header->down;node!=header;node=node->down){
+      if(node->nodeID[0]==nodeIDL){
+        if(addLock){
+          if(!os_tryObtainSemphore(node->semlock)){
+            os_releaseSemphore(((TDateTimer *)dtimer)->_task_mutex);
+            os_obtainSemphore(node->semlock);
+            os_obtainSemphore(((TDateTimer *)dtimer)->_task_mutex);
+            //以下为了防止中断期间被删除
+            if(node->nodeID[0]!=nodeIDL){
               os_releaseSemphore(node->semlock);
               os_releaseSemphore(((TDateTimer *)dtimer)->_task_mutex);
               goto label_start;

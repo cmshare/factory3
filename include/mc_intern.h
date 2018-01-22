@@ -32,8 +32,8 @@ typedef struct{
 typedef struct _TTermUser
 { TTerminal terminal;
   char username[SIZE_MOBILE_PHONE+1];
-  void *listeningLab;
-  TBinodeLink listens;
+  void *currentLab;
+  TBinodeLink listenLinker;
 }TTermUser;
 
 typedef struct

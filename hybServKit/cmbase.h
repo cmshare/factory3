@@ -161,7 +161,7 @@ U8     mem_XOR(void *data,int dataLen);
 void   mem_MD5(void* data,int dataLen,U8 ret[16]);
 void  *mem_search(void *srcMem,int memSize,void *desData,int dataSize);
 void   mem_reverse(void *p_buf,int dLen);
-void   mem_asyncfree(void *mem,int msDelay);
+void   async_free(void *mem,int msDelay);
 void   async_exec(void (*asyncTask)(void *),void *param,int msDelay);
 void   exit_with_exception(char *errmsg);
 //---------------------------------------------------------------------------
@@ -201,7 +201,8 @@ HAND  dtmr_create(int hashLen,U32 sHoldTime,DTMR_TimeoutEvent OnTimeout);
 void  dtmr_destroy(HAND dtimer);
 void *dtmr_add(HAND dtimer,U32 nodeIDL,U32 nodeIDH,char *nodeName,void *nodeData,U32 dataSize,U32 msLifeTime,U32 *options);
 void *dtmr_find(HAND dtimer,U32 nodeIDL,U32 nodeIDH,char *nodeName,BOOL addLock);
-void *dtmr_findById(HAND dtimer,U32 nodeIDL,U32 nodeIDH,BOOL addLock);
+void *dtmr_findByID(HAND dtimer,U32 nodeIDL,U32 nodeIDH,BOOL addLock);
+void *dtmr_findById(HAND dtimer,U32 nodeIDL,BOOL addLock);
 void *dtmr_findByName(HAND dtimer,char *nodeName,BOOL addLock);
 void *dtmr_findByData(HAND dtimer,U32 nodeIDL,U32 nodeIDH,void *nodeData,U32 dataSize,int dataOffset,BOOL addLock);
 BOOL  dtmr_update(void *dnode,U32 msUpdateLifeTime,U32 options);

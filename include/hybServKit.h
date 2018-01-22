@@ -36,11 +36,12 @@ int    tm_getLocalHour(time_t timestamp);//get local hour from unix timestamp;
 //---------------------------------------------------------------------------
 enum  {DTMR_LOCK=0x80000000U,DTMR_ENABLE=0x40000000U,DTMR_CYCLE=0x20000000U,DTMR_TIMEOUT_DELETE=0x10000000U,DTMR_OVERRIDE=0x08000000U,DTMR_EXIST=0x00000001U,DTMR_TIMEOUT_STOP=0,DTMR_DISABLE=0,DTMR_NOVERRIDE=0};
 typedef void (*DTMR_TimeoutEvent)(HAND,void *,U32 *,char *);
-HAND  dtmr_create(int hashLen,U32 sHoldTime,DTMR_TimeoutEvent OnTimeout);
+HAND  dtmr_create(int hashLen,U32 msHoldTime,DTMR_TimeoutEvent OnTimeout);
 void  dtmr_destroy(HAND dtimer);
 void *dtmr_add(HAND dtimer,U32 nodeIDL,U32 nodeIDH,char *nodeName,void *nodeData,U32 dataSize,U32 msLifeTime,U32 *options);
 void *dtmr_find(HAND dtimer,U32 nodeIDL,U32 nodeIDH,char *nodeName,BOOL addLock);
-void *dtmr_findById(HAND dtimer,U32 nodeIDL,U32 nodeIDH,BOOL addLock);
+void *dtmr_findByID(HAND dtimer,U32 nodeIDL,U32 nodeIDH,BOOL addLock);
+void *dtmr_findById(HAND dtimer,U32 nodeIDL,BOOL addLock);
 void *dtmr_findByName(HAND dtimer,char *nodeName,BOOL addLock);
 void *dtmr_findByData(HAND dtimer,U32 nodeIDL,U32 nodeIDH,void *nodeData,U32 dataSize,int dataOffset,BOOL addLock);
 BOOL  dtmr_update(void *dnode,U32 msUpdateLifeTime,U32 options);
@@ -69,8 +70,7 @@ int    mb_receive(void *msgBuf,int bufSize);
 //---------------------------------------------------------------------------		
 //Others
 //---------------------------------------------------------------------------		
-void    mem_asyncfree(void *mem,int msDelay);
+void    async_free(void *mem,int msDelay);
 void    async_exec(void (*asyncTask)(void *),void *param,int msDelay);
-void   mem_asyncfree(void *mem,int msDelay);
 //---------------------------------------------------------------------------		
 #endif

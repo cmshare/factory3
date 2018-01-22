@@ -61,7 +61,7 @@ static void terminal_HbTimeout(HAND ttasks,void *taskCode,U32 *taskID,char *task
          break;
     case TT_USER: //user
            db_queryf("update `mc_users` set sessionid=0,logouttime=unix_timestamp() where id=%u",terminal->id);
-           UWBLab_removeUser(terminal);
+           UWBLab_logoutUser(terminal);
            printf("user offline:%s\n",terminal->name);
          break;
   }
@@ -81,7 +81,7 @@ U32 session_new(void){
   while(1)
   { U32 rand_session=rand();
     if(rand_session)
-    { if(!dtmr_find(terminalLinks,rand_session,0,0,0))return rand_session;
+    { if(!dtmr_findById(terminalLinks,rand_session,0))return rand_session;
     }
   }
 }
