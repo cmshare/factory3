@@ -87,10 +87,11 @@ BOOL msg_decrypt(TMcMsg *msg)
 //---------------------------------------------------------------------------
 BOOL msg_response_dispatch(TMcPacket *packet,void msgHandle(TMcPacket *,void *)){
     //TMSG_ACK_GENERAL *ack=(TMSG_ACK_GENERAL *)packet->msg.body;
-  TSuspendRequest *susRequest=(TSuspendRequest *)dtmr_find(suspendRequestLinks,packet->msg.synid,0,NULL,TRUE);
+  TSuspendRequest *susRequest=(TSuspendRequest *)dtmr_findById(suspendRequestLinks,packet->msg.synid,TRUE);
   if(susRequest){
     U32 ackMsgID=packet->msg.msgid;
-    if(ackMsgID==(susRequest->reqPacket.msg.msgid|MSG_ACK_MASK)||ackMsgID==MSG_ACK_MASK){
+    U32 reqMsgID=susRequest->reqPacket.msg.msgid;
+    if(ackMsgID==(reqMsgID|MSG_ACK_MASK)||(ackMsgID==MSG_ACK_MASK && ((TMSG_ACK_GENERAL *)packet->msg.body)->ack_msgid==reqMsgID)){
       U32 _ackSession=(susRequest->reqPacket.terminal)?susRequest->reqPacket.terminal->sessionid:SERVER_DYNAMIC_SESSION(&packet->msg);
       if(_ackSession==packet->msg.sessionid /*&& susRequest->ack_msg==packet->msg.msgid*/){
         // RESPONSE_APPENDIX(packet)=susRequest->extraData;

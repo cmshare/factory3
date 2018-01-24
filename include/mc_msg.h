@@ -11,95 +11,100 @@
 //DSR表示Request of Device to Server
 //UDA表示Acknowledge of User to Device
 
-#define MSG_ACK_MASK              0x80000000    //服务器通用应答
-#define MSG_ACK_GENERAL           MSG_ACK_MASK     //服务器通用应答
+#define MSG_ACK_MASK               0x80000000    //服务器通用应答
+#define MSG_ACK_GENERAL            MSG_ACK_MASK     //服务器通用应答
 
-#define MSG_TSR_HEARTBEAT         0x00000001    //手机、终端心跳请求，返回服务器通用应答。
+#define MSG_TSR_HEARTBEAT          0x00000001    //手机、终端心跳请求，返回服务器通用应答。
 
 //#define MSG_SUR_NOTIFY_MSGBOX    0x00000001    //服务器事件通知请求
 //#define MSG_USA_NOTIFY_MSGBOX    (MSG_SUR_NOTIFY_MSGBOX|MSG_ACK_GENERAL) 
 
-#define MSG_DSR_LOGIN             0x00000002    //终端设备登录请求
-#define MSG_SDA_LOGIN             (MSG_DSR_LOGIN|MSG_ACK_GENERAL)  //终端登录响应
+#define MSG_DSR_LOGIN              0x00000002    //终端设备登录请求
+#define MSG_SDA_LOGIN              (MSG_DSR_LOGIN|MSG_ACK_GENERAL)  //终端登录响应
 
-#define MSG_SDR_KICKOFF           0x00000004  //服务器将基站踢下线或者通知sessionid失效
-#define MSG_USA_KICKOFF           (MSG_SDR_KICKOFF|MSG_ACK_GENERAL)
-
-#define MSG_USR_REGIST            0x0000F001   //手机注册账号请求
-#define MSG_SUA_REGIST            (MSG_USR_REGIST|MSG_ACK_GENERAL)  //手机注册账号响应
-
-#define MSG_USR_LOGIN             0x0000F002    //手机用户登录请求
-#define MSG_SUA_LOGIN             (MSG_USR_LOGIN|MSG_ACK_GENERAL)  //用户登录响应
-
-#define MSG_USR_LOGOUT            0x0000F003   //手机注销请求，返回服务器通用应答。
-
-#define MSG_SUR_KICKOFF           0x0000F004  //服务器将用户踢下线
-#define MSG_USA_KICKOFF           (MSG_SUR_KICKOFF|MSG_ACK_GENERAL)
-
-#define MSG_USR_SWITCHLAB         0x0000F007   //切换Lab监听
-
-#define MSG_SUR_POSTDATA          0x0000F008    //发送定位数据包（不要求应答）
-
-#define MSG_USR_GETBINDLIST       0x0000F009   //读取绑定lab列表
-#define MSG_SUA_GETBINDLIST       (MSG_USR_GETBINDLIST|MSG_ACK_GENERAL)
-
-#define MSG_USR_GETCONFIG         0x0000F00A   //读取一个指定lab的配置参数
-#define MSG_SUA_GETCONFIG         (MSG_USR_GETCONFIG|MSG_ACK_GENERAL)
-
-#define MSG_USR_SETCONFIG         0x0000F00B   //设置lab配置参数（手动标定）
-
-#define MSG_USR_CALIBRATION       0x0000F00C   //请求自动标定
-#define MSG_SUA_CALIBRATION       (MSG_USR_CALIBRATION|MSG_ACK_GENERAL)
+#define MSG_SDR_KICKOFF            0x00000004  //服务器将基站踢下线或者通知sessionid失效
+#define MSG_DSA_KICKOFF            (MSG_SDR_KICKOFF|MSG_ACK_GENERAL)
 
 
-#define MSG_BSR_NOTIFY            0x00008001    //WEB管理平台(浏览器)通知服务器后台服务
+#define MSG_SDR_CALIBRATION_RANGING 0x000000C   //请求标定测距
+#define MSG_DSA_CALIBRATION_RANGING (MSG_SDR_CALIBRATION_RANGING|MSG_ACK_GENERAL)
 
-#define MSG_SDR_COMMJSON          0x00000100    //终端JSON信息请求（应答按通用应答）
+#define MSG_DSR_CALIBRATION_RESULT  0x000000D   
 
-#define MSG_DSR_COMMJSON          0x00000101    //终端JSON信息上报（应答按通用应答）
+
+#define MSG_USR_REGIST             0x0000F001   //手机注册账号请求
+#define MSG_SUA_REGIST             (MSG_USR_REGIST|MSG_ACK_GENERAL)  //手机注册账号响应
+
+#define MSG_USR_LOGIN              0x0000F002    //手机用户登录请求
+#define MSG_SUA_LOGIN              (MSG_USR_LOGIN|MSG_ACK_GENERAL)  //用户登录响应
+
+#define MSG_USR_LOGOUT             0x0000F003   //手机注销请求，返回服务器通用应答。
+
+#define MSG_SUR_KICKOFF            0x0000F004  //服务器将用户踢下线
+#define MSG_USA_KICKOFF            (MSG_SUR_KICKOFF|MSG_ACK_GENERAL)
+
+#define MSG_USR_SWITCHLAB          0x0000F007   //切换Lab监听
+
+#define MSG_SUR_POSTDATA           0x0000F008    //发送定位数据包（不要求应答）
+
+#define MSG_USR_GETBINDLIST        0x0000F009   //读取绑定lab列表
+#define MSG_SUA_GETBINDLIST        (MSG_USR_GETBINDLIST|MSG_ACK_GENERAL)
+
+#define MSG_USR_GETCONFIG          0x0000F00A   //读取一个指定lab的配置参数
+#define MSG_SUA_GETCONFIG          (MSG_USR_GETCONFIG|MSG_ACK_GENERAL)
+
+#define MSG_USR_SETCONFIG          0x0000F00B   //设置lab配置参数（手动标定）
+
+#define MSG_USR_CALIBRATION_START  0x0000F00C   //请求自动标定(返回通用应答)
+
+#define MSG_SUR_CALIBRATION_RESULT 0x0000F00D   //自动标定结果(返回通用应答)
+
+
+
+
+#define MSG_BSR_NOTIFY             0x00008001    //WEB管理平台(浏览器)通知服务器后台服务
+
+#define MSG_SDR_COMMJSON           0x00000100    //终端JSON信息请求（应答按通用应答）
+
+#define MSG_DSR_COMMJSON           0x00000101    //终端JSON信息上报（应答按通用应答）
                                   
-#define MSG_USR_VERIFYCODE        0x00000010  //手机申请验证码请求
-#define MSG_SUA_VERIFYCODE        (MSG_USR_VERIFYCODE|MSG_ACK_GENERAL) //手机申请验证码响应
+#define MSG_USR_VERIFYCODE         0x00000010  //手机申请验证码请求
+#define MSG_SUA_VERIFYCODE         (MSG_USR_VERIFYCODE|MSG_ACK_GENERAL) //手机申请验证码响应
                                   
-#define MSG_DSR_APPLYFORUID       0x00000063   //设备申请UID请求
-#define MSG_SDA_APPLYFORUID       (MSG_DSR_APPLYFORUID|MSG_ACK_GENERAL) 
+#define MSG_DSR_APPLYFORUID        0x00000063   //设备申请UID请求
+#define MSG_SDA_APPLYFORUID        (MSG_DSR_APPLYFORUID|MSG_ACK_GENERAL) 
 
-#define MSG_USR_CHANGENICK        0x00000016   //手机修改昵称请求，返回服务器通用应答。
+#define MSG_USR_CHANGENICK         0x00000016   //手机修改昵称请求，返回服务器通用应答。
                                   
-#define MSG_USR_CHANGEPSW         0x00000017   //手机修改密码请求
-#define MSG_SUA_CHANGEPSW         (MSG_USR_CHANGEPSW|MSG_ACK_GENERAL) //手机修改密码响应
+#define MSG_USR_CHANGEPSW          0x00000017   //手机修改密码请求
+#define MSG_SUA_CHANGEPSW          (MSG_USR_CHANGEPSW|MSG_ACK_GENERAL) //手机修改密码响应
                                   
-#define MSG_USR_GETUSERINFO       0x00000018   //手机获取用户资料请求
-#define MSG_SUA_GETUSERINFO       (MSG_USR_GETUSERINFO|MSG_ACK_GENERAL) //手机获取用户资料响应
+#define MSG_USR_GETUSERINFO        0x00000018   //手机获取用户资料请求
+#define MSG_SUA_GETUSERINFO        (MSG_USR_GETUSERINFO|MSG_ACK_GENERAL) //手机获取用户资料响应
 
-#define MSG_USR_CHANGEHEAD        0x00000015   //手机修改头像请求，返回服务器通用应答。
+#define MSG_USR_CHANGEHEAD         0x00000015   //手机修改头像请求，返回服务器通用应答。
                                   
-#define MSG_USR_GETUSERHEAD       0x00000019   //手机获取用户头像信息请求
-#define MSG_SUA_GETUSERHEAD       (MSG_USR_GETUSERHEAD|MSG_ACK_GENERAL)//手机获取用户头像信息响应
+#define MSG_USR_GETUSERHEAD        0x00000019   //手机获取用户头像信息请求
+#define MSG_SUA_GETUSERHEAD        (MSG_USR_GETUSERHEAD|MSG_ACK_GENERAL)//手机获取用户头像信息响应
                                   
-#define MSG_USR_CHANGESEX         0x0000001A   //手机修改用户性别请求
+#define MSG_USR_CHANGESEX          0x0000001A   //手机修改用户性别请求
 
-#define MSG_USR_ACCEPTMSGPUSH     0x0000001B   //手机接受服务器的消息推送:使能请求
+#define MSG_USR_ACCEPTMSGPUSH      0x0000001B   //手机接受服务器的消息推送:使能请求
 
-#define MSG_USR_ACCEPTLIVEPUSH    0x0000001C   //手机接受其他手机的直播推送:使能请求
+#define MSG_USR_ACCEPTLIVEPUSH     0x0000001C   //手机接受其他手机的直播推送:使能请求
 
-#define MSG_USR_CONFIGS           0x0000001D   //手机获取系统配置
-#define MSG_SUA_CONFIGS           (MSG_USR_CONFIGS|MSG_ACK_GENERAL) 
+#define MSG_USR_CONFIGS            0x0000001D   //手机获取系统配置
+#define MSG_SUA_CONFIGS            (MSG_USR_CONFIGS|MSG_ACK_GENERAL) 
 
-#define MSG_USR_BIND              0x00000020   //手机绑定/解除绑定终端请求
-#define MSG_SUA_BIND              (MSG_USR_BIND|MSG_ACK_GENERAL)  //手机绑定/解除绑定终端响应
+#define MSG_USR_BIND               0x00000020   //手机绑定/解除绑定终端请求
+#define MSG_SUA_BIND               (MSG_USR_BIND|MSG_ACK_GENERAL)  //手机绑定/解除绑定终端响应
 
-#define MSG_USR_GETBINDLIST_DEPRECATED  0x00000021   //手机查询绑定列表请求
-#define MSG_SUA_GETBINDLIST_DEPRECATED  (MSG_USR_GETBINDLIST_DEPRECATED|MSG_ACK_GENERAL)    //手机查询绑定列表响应
-                                 
-#define MSG_VSR_GETBINDUSER       0x00000022   //手机查询终端绑定情况请求
-#define MSG_SVA_GETBINDUSER       (MSG_VSR_GETBINDUSER|MSG_ACK_GENERAL)    //手机查询终端绑定情况响应
+#define MSG_VSR_GETBINDUSER        0x00000022   //手机查询终端绑定情况请求
+#define MSG_SVA_GETBINDUSER        (MSG_VSR_GETBINDUSER|MSG_ACK_GENERAL)    //手机查询终端绑定情况响应
 
-//#define MSG_USR_GETBINDLIST       0x00000023   //手机查询绑定列表请求
-//#define MSG_SUA_GETBINDLIST       (MSG_USR_GETBINDLIST|MSG_ACK_GENERAL)    //手机查询绑定列表响应
  
-#define MSG_USR_QUERY_GPS         0x00000049 //手机查询终端final location  (手机-->服务器)
-#define MSG_SUA_QUERY_GPS         (MSG_USR_QUERY_GPS|MSG_ACK_GENERAL) //响应
+#define MSG_USR_QUERY_GPS          0x00000049 //手机查询终端final location  (手机-->服务器)
+#define MSG_SUA_QUERY_GPS          (MSG_USR_QUERY_GPS|MSG_ACK_GENERAL) //响应
                                  
 #define MSG_DSR_NOTIFY_STATE       0x00000050 //终端状态通知请求   (终端-->服务器)
 #define MSG_SDA_NOTIFY_STATE       (MSG_DSR_NOTIFY_STATE|MSG_ACK_GENERAL) //终端状态通知响应

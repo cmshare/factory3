@@ -27,7 +27,7 @@ static BOOL packet_checksum_and_decrypt(TMcPacket *packet){
   TMcMsg *msg=&packet->msg;
   int msgLen=MC_MSG_SIZE(msg);
   if(msg_ValidChecksum(msg,msgLen)){
-    TTerminal *terminal=(msg->sessionid)?(TTerminal *)dtmr_findById(terminalLinks,msg->sessionid,FALSE):NULL;
+    TTerminal *terminal=(msg->sessionid)?(TTerminal *)dtmr_findById(dtmr_termLinks,msg->sessionid,FALSE):NULL;
     if(terminal){
       //分配的sessionid与IP地址是绑定的关系，如果不对应表示sessionid已经失效。
       //TCP与UDP有不同的端口，但是这里只验证UDP端口的绑定关系；
@@ -73,7 +73,7 @@ static TMcPacket *NET_RecvPacket(void *dgramBuffer,int bufferSize){
      }
    }
  /*  else{
-    //处理校验错误的UDP报文(将其转发至监控端 ,鉴于复杂度将不处理错误的TCP报文) TTerminal *terminal=dtmr_find2(terminalLinks,0,0,&packet->peerAddr,sizeof(TNetAddr),T_NODE_OFFSET(TTerminal,loginAddr),0);
+    //处理校验错误的UDP报文(将其转发至监控端 ,鉴于复杂度将不处理错误的TCP报文) TTerminal *terminal=dtmr_find2(dtmr_termLinks,0,0,&packet->peerAddr,sizeof(TNetAddr),T_NODE_OFFSET(TTerminal,loginAddr),0);
      if(terminal && terminal->spyAddr.ip)hsk_sendData(msg,sliceLen,&terminal->spyAddr);	
    }*/
    return NULL;  	

@@ -1,6 +1,6 @@
 #include "mc_routine.h"
 //---------------------------------------------------------------------------
-HAND terminalLinks=NULL,commDataLinks=NULL;
+HAND dtmr_termLinks=NULL,dtmr_commLinks=NULL;
 static HAND uwb_session_locker=NULL;
 //commDataLinks通用性规则约定：hTaskID存储消息ID，由字段值决定附件数据结构类型。
 //---------------------------------------------------------------------------
@@ -13,7 +13,7 @@ void device_stateNotifyUser(TTerminal *devTerm,U32 devID){
      if(row){
         U32 binded_usersession=atoi(row[0]);
         if(binded_usersession){
-          TTerminal * usrnode=(TTerminal *)dtmr_find(terminalLinks,binded_usersession,0,0,0);
+          TTerminal * usrnode=(TTerminal *)dtmr_find(dtmr_termLinks,binded_usersession,0,0,0);
           if(usrnode){//if binded user is online
             TMcMsg *reqmsg=msg_alloc(MSG_SUR_NOTIFY_STATE,sizeof(TMSG_SUR_NOTIFY_STATE));
             TMSG_SUR_NOTIFY_STATE *reqbody=(TMSG_SUR_NOTIFY_STATE *)reqmsg->body;
@@ -50,9 +50,9 @@ static void terminal_HbTimeout(HAND ttasks,void *taskCode,U32 *taskID,char *task
     case TT_DEVICE:{//device
              //释放session,并修改终端state(确定全套系统离线).
              TNetAddr *peerAddr=&terminal->loginAddr;
-             terminal->term_state=DEV_STATE_OFFLINE;
              db_queryf("update uwb_anchor set sessionid=0,logouttime=unix_timestamp() ,state=%d where id=%u",DEV_STATE_OFFLINE,terminal->id);
              if(hsk_isTcpSocket(peerAddr->socket)) shutdown(peerAddr->socket,2);
+             terminal->term_state=DEV_STATE_OFFLINE;//mark offline，不要直接修改sessionid为０
              terminal->loginAddr.socket=0;//mark disconnected
              UWBLab_logoutAnchor(terminal);
              //device_stateNotifyUser(terminal,0);//通知绑定手机终端摄像头已离线
@@ -81,7 +81,7 @@ U32 session_new(void){
   while(1)
   { U32 rand_session=rand();
     if(rand_session)
-    { if(!dtmr_findById(terminalLinks,rand_session,0))return rand_session;
+    { if(!dtmr_findById(dtmr_termLinks,rand_session,0))return rand_session;
     }
   }
 }
@@ -91,14 +91,14 @@ void terminal_init(void)
 { MYSQL_RES *res;
   U32 dtmrOptions=DTMR_TIMEOUT_DELETE|DTMR_OVERRIDE;
   U32 local_UdpSocket=hsk_getUdpSocket();
-  terminalLinks=dtmr_create(1024,HEARTBEAT_OVERTIME_MS,terminal_HbTimeout);
-  commDataLinks=dtmr_create(0,60,NULL);
+  dtmr_termLinks=dtmr_create(1024,HEARTBEAT_OVERTIME_MS,terminal_HbTimeout);
+  dtmr_commLinks=dtmr_create(64,60000,NULL);
   res=db_query("select id,username,sessionid,ip,port,groupid,sex from `uwb_user` where sessionid<>0");
   if(res)
   { MYSQL_ROW row;
     while((row = mysql_fetch_row(res)))
     { U32 sessionid=atoi(row[2]);//field["session"]
-      TTerminal *node=(TTerminal *)dtmr_add(terminalLinks,sessionid,0,0,NULL,sizeof(TTermUser),HEARTBEAT_OVERTIME_MS,&dtmrOptions);
+      TTerminal *node=(TTerminal *)dtmr_add(dtmr_termLinks,sessionid,0,0,NULL,sizeof(TTermUser),HEARTBEAT_OVERTIME_MS,&dtmrOptions);
       if(node)
       { node->term_type=TT_USER;
         node->sessionid=sessionid;
@@ -113,13 +113,13 @@ void terminal_init(void)
     }   
     mysql_free_result(res); 
   }
-
-  res=db_query("select id,sn,sessionid,ip,port,groupid,state,boxid,logintime from `mc_devices` where sessionid<>0");
+/*
+  res=db_query("select id,sessionid,ip,port,groupid,state,logintime from `uwb_anchor` where sessionid<>0");
   if(res)
   { MYSQL_ROW row;
     while((row = mysql_fetch_row(res)))
     { U32 sessionid=atoi(row[2]);//field["session"]
-      TTerminal *node=(TTerminal *)dtmr_add(terminalLinks,sessionid,0,0,NULL,sizeof(TTermDevice),HEARTBEAT_OVERTIME_MS,&dtmrOptions);
+      TTerminal *node=(TTerminal *)dtmr_add(dtmr_termLinks,sessionid,0,0,NULL,sizeof(TTermDevice),HEARTBEAT_OVERTIME_MS,&dtmrOptions);
       if(node)
       { node->term_type=TT_DEVICE;
         node->sessionid=sessionid; 
@@ -136,5 +136,6 @@ void terminal_init(void)
     }   
     mysql_free_result(res); 
   }
+*/
 }
 

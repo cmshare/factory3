@@ -10,8 +10,10 @@ void Response_MSG_TIMEOUT(TMcPacket *request,void *extraData){
   }
 }
 
+void Response_MSG_ACK_GENERAL(TMcPacket *response,void *extraData){
+}
 
-void  Response_MSG_DSA_WAKEUP(TMcPacket *response,void *extraData)
+void Response_MSG_DSA_WAKEUP(TMcPacket *response,void *extraData)
 { TMcPacket *sus_packet=(TMcPacket *)extraData;
   U8 ret_error=((TMSG_ACK_GENERAL *)response->msg.body)->error;
   msg_ack_general(sus_packet,ret_error);

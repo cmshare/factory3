@@ -35,6 +35,6 @@ int push_group_msg(U32 usrgroup,U32 devgroup,int msgType,char *msgContent,char *
 //---------------------------------------------------------------------------
 void session_lock(BOOL lock);
 U32  session_new(void);
-extern HAND terminalLinks,commDataLinks;
+extern HAND dtmr_termLinks,dtmr_labLinks,dtmr_commLinks;
 //---------------------------------------------------------------------------
 #endif
