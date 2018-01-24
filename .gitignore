@@ -8,6 +8,6 @@
 *.a
 *.bak
 cscope.*
-uwb*
+uwbd*
 core.*
 
