@@ -61,6 +61,7 @@ void Handle_MSG_DSR_LOGIN(TMcPacket *packet){
     DBLog_AppendData("\xFF\xFF\xFF\xFF\x00",5,anchor); //登录日志
   }
   session_lock(FALSE);
+  printf("anchor#%d login \n",anchorID);
 }
 
 

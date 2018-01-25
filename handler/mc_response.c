@@ -1,5 +1,7 @@
 #include "mc_routine.h"
 //---------------------------------------------------------------------------
+#define GENERAL_RESPONSE(MSGNAME)  case MSGNAME:{extern void GeneralResponse_##MSGNAME(TMcPacket *,void *);GeneralResponse_##MSGNAME(response,extraData);break;}
+//---------------------------------------------------------------------------
 void Response_MSG_TIMEOUT(TMcPacket *request,void *extraData){
   switch(request->msg.msgid){/*
       case MSG_SUR_NOTIFY_MSGBOX:{
@@ -10,7 +12,12 @@ void Response_MSG_TIMEOUT(TMcPacket *request,void *extraData){
   }
 }
 
+
 void Response_MSG_ACK_GENERAL(TMcPacket *response,void *extraData){
+  switch(((TMSG_ACK_GENERAL *)response->msg.body)->ack_msgid){
+    GENERAL_RESPONSE(MSG_SDR_CALIBRATION_RANGING)
+    default: puts("######Response_MSG_ACK_GENERAL fail to match request!");
+  }
 }
 
 void Response_MSG_DSA_WAKEUP(TMcPacket *response,void *extraData)

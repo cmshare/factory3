@@ -48,6 +48,7 @@ static void terminal_HbTimeout(HAND ttasks,void *taskCode,U32 *taskID,char *task
  // Log_AppendText("\r\n[HeatBeatTimeout:%s]",terminal->name);
   switch(terminal->term_type){
     case TT_DEVICE:{//device
+             printf("anchor#%d offline:\n",terminal->id);
              //释放session,并修改终端state(确定全套系统离线).
              TNetAddr *peerAddr=&terminal->loginAddr;
              db_queryf("update uwb_anchor set sessionid=0,logouttime=unix_timestamp() ,state=%d where id=%u",DEV_STATE_OFFLINE,terminal->id);
@@ -61,8 +62,8 @@ static void terminal_HbTimeout(HAND ttasks,void *taskCode,U32 *taskID,char *task
          break;
     case TT_USER: //user
            db_queryf("update `uwb_user` set sessionid=0,logouttime=unix_timestamp() where id=%u",terminal->id);
-           UWBLab_logoutUser(terminal);
            printf("user offline:%s\n",terminal->name);
+           UWBLab_logoutUser(terminal);
          break;
   }
   DBLog_AppendData("\xFF\xFF\xFF\xFF\x01",5,terminal); //超时登出日志
@@ -91,8 +92,8 @@ void terminal_init(void)
 { MYSQL_RES *res;
   U32 dtmrOptions=DTMR_TIMEOUT_DELETE|DTMR_OVERRIDE;
   U32 local_UdpSocket=hsk_getUdpSocket();
-  dtmr_termLinks=dtmr_create(1024,HEARTBEAT_OVERTIME_MS,terminal_HbTimeout);
-  dtmr_commLinks=dtmr_create(64,60000,NULL);
+  dtmr_termLinks=dtmr_create(1024,HEARTBEAT_OVERTIME_MS,terminal_HbTimeout,"dtmr_termLinks");
+  dtmr_commLinks=dtmr_create(64,60000,NULL,"dtmr_commLinks");
   res=db_query("select id,username,sessionid,ip,port,groupid,sex from `uwb_user` where sessionid<>0");
   if(res)
   { MYSQL_ROW row;

@@ -560,7 +560,7 @@ int hsk_init(int localTcpPort,int localUdpPort,int maxUdpDatagramSize,int inQueu
   hskUdpSocket=UDP_Init(localUdpPort);
   hskTcpSocket=TCP_Init(localTcpPort);
   if(hskUdpSocket>0 && hskTcpSocket>0){
-    discreteTransferLinks=dtmr_create(0,0,OnDiscreteTransferTimeout);
+    discreteTransferLinks=dtmr_create(0,0,OnDiscreteTransferTimeout,"tcp_discreteLinks");
     os_createSemphore(&socket_queue_mutex,1);
     os_createSemphore(&socket_read_sem,0);
     socket_inqueue=qb_create(inQueueSize);

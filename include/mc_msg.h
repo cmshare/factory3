@@ -31,6 +31,7 @@
 
 #define MSG_DSR_CALIBRATION_RESULT  0x000000D   
 
+#define MSG_USR_TEST               0x0000F000   //返回通用应答
 
 #define MSG_USR_REGIST             0x0000F001   //手机注册账号请求
 #define MSG_SUA_REGIST             (MSG_USR_REGIST|MSG_ACK_GENERAL)  //手机注册账号响应

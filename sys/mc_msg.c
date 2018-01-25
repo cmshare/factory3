@@ -5,7 +5,7 @@
 static  U32 msg_sndbuf_pos=0;
 static  char *msg_sndbuf=NULL;
 static sem_t msg_alloc_lock;
-static HAND suspendRequestLinks=NULL;
+static HAND dtmr_suspendRequestLinks=NULL;
 //---------------------------------------------------------------------------
 extern void AES128_setkey(void *aeskey);
 extern void AES128_encrypt(void *data,int dataLen);
@@ -87,7 +87,7 @@ BOOL msg_decrypt(TMcMsg *msg)
 //---------------------------------------------------------------------------
 BOOL msg_response_dispatch(TMcPacket *packet,void msgHandle(TMcPacket *,void *)){
     //TMSG_ACK_GENERAL *ack=(TMSG_ACK_GENERAL *)packet->msg.body;
-  TSuspendRequest *susRequest=(TSuspendRequest *)dtmr_findById(suspendRequestLinks,packet->msg.synid,TRUE);
+  TSuspendRequest *susRequest=(TSuspendRequest *)dtmr_findById(dtmr_suspendRequestLinks,packet->msg.synid,TRUE);
   if(susRequest){
     U32 ackMsgID=packet->msg.msgid;
     U32 reqMsgID=susRequest->reqPacket.msg.msgid;
@@ -170,7 +170,7 @@ void msg_send(TMcMsg *msg,TMcPacket *packet,TTerminal *terminal){
 }
 //---------------------------------------------------------------------------
 void msg_request(TMcMsg *reqMsg,TTerminal *terminal,/*U32 ackMsgID,*/void *extraData,U32 extraSize)
-{ msg_send(reqMsg,NULL,terminal);//服务器主动发起的请求必定是UDP协议。
+{ msg_send(reqMsg,NULL,terminal);
   //printf("[request send to %s:%d @%u]\r\n",inet_ntoa(*((struct in_addr *)&terminal->loginAddr.ip)),terminal->loginAddr.port,time(NULL));
   //等接收到B对象的响应后，再处理挂起的A对象的packet。
   //注意：msgLenStored为保存消息体的长度，若为0则只保存消息头。
@@ -182,9 +182,9 @@ void msg_request(TMcMsg *reqMsg,TTerminal *terminal,/*U32 ackMsgID,*/void *extra
     else extraSize=0;    
   }
   U32 dtmrOptions=DTMR_LOCK|DTMR_ENABLE|DTMR_CYCLE|DTMR_TIMEOUT_DELETE|DTMR_OVERRIDE;
-  TSuspendRequest *node=(TSuspendRequest *)dtmr_add(suspendRequestLinks,reqMsg->synid,0,NULL,NULL,req_packet_size,REQMSG_RETRY_INTERVAL_MS,&dtmrOptions);
-  if(node)
-  { //node->ack_msg=ackMsgID;
+  TSuspendRequest *node=(TSuspendRequest *)dtmr_add(dtmr_suspendRequestLinks,reqMsg->synid,0,NULL,NULL,req_packet_size,REQMSG_RETRY_INTERVAL_MS,&dtmrOptions);
+  if(node){
+    //node->ack_msg=ackMsgID;
     node->retry_counter=1;
     node->reqPacket.terminal=terminal;
     if(terminal){
@@ -219,5 +219,5 @@ void msg_init(void)
 { sem_init(&msg_alloc_lock, 0, 1);
   msg_sndbuf=(char *)malloc(MSG_SNDQUEUE_SIZE+4);
   AES128_setkey(AES128_KEY_CODE);
-  suspendRequestLinks=dtmr_create(0,0,msg_request_timeout); 
+  dtmr_suspendRequestLinks=dtmr_create(0,0,msg_request_timeout,"dtmr_suspendRequestLinks"); 
 }

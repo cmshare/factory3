@@ -335,7 +335,6 @@ static void _UWBLab_checkDelete(TUWBLocalAreaBlock *lab){
   }
 }
 void UWBLab_logoutAnchor(TTerminal *anchor){
-
   puts("####logoutAnchor");
   TUWBLocalAreaBlock *lab=((TUWBAnchor *)anchor)->lab;
   UWB_GLOBAL_LOCK();
@@ -428,7 +427,7 @@ BOOL UWB_frame_checknum(UWBRawFrame *frame){
 
 void UWB_system_init(void){
   os_createSemphore(&uwb_global_locker, 1);/*信号量初值为1，作互斥量*/
-  dtmr_labLinks=dtmr_create(32,UWB_LAB_TIMEOUT_MS,NULL);
+  dtmr_labLinks=dtmr_create(32,UWB_LAB_TIMEOUT_MS,NULL,"dtmr_labLinks");
   init_tag_list();
   //初始房间列表的dummy header
 }

@@ -999,6 +999,7 @@ typedef struct
   TBinodeLink *_hashMapTable;
   U32  hashMapLength,dataProtectTime,magicNumber;
   HAND _timer_check_thread,_task_mutex,_sem_timer;
+  char name[32];
 }TDateTimer;
 
 struct _TDateTimerNode
@@ -1012,16 +1013,26 @@ struct _TDateTimerNode
 static void _DTMR_UpdateTimeout(TDateTimer *ttasks,TDateTimerNode *node,U32 msLifeTime)
 { TDateTimerNode *dummyHead=ttasks->_tsklist;
   TDateTimerNode *firstNode=dummyHead->next;
+  TDateTimerNode *nextNode=node->next;
   U32 msTimeOut=(msLifeTime)?(os_msRunTime()+msLifeTime):0;
   node->msTimeOut=msTimeOut;
-  if(node==firstNode && (node->next==dummyHead || msTimeOut<=node->next->msTimeOut))
-  { //本身就在表头，且时间排序不用调整。
-     os_releaseSemphore(ttasks->_sem_timer);//头部节点的时间调整后要发信号量
+  if(node==firstNode){
+    //本身就在表头，且时间排序不用调整。
+     if(nextNode==dummyHead || msTimeOut<=nextNode->msTimeOut){
+       os_releaseSemphore(ttasks->_sem_timer);//头部节点的时间调整后要发信号量
+     }
+     else{
+       BINODE_REMOVE(node,prev,next); //从时间轴链表中删除
+       firstNode=dummyHead->next;
+       goto label_resort;
+     }
   }
-  else
-  { //从时间轴链表中删除
-    if(node!=node->next) BINODE_REMOVE(node,prev,next);
-
+  else{
+    if(node!=nextNode){ //是已经插入到timelist中的有效节点
+       if(msTimeOut<=nextNode->msTimeOut && nextNode!=dummyHead)return;//不需要调整
+       else BINODE_REMOVE(node,prev,next); //从时间轴链表中删除
+    }
+    label_resort:
     //重新插入横向环形双向链表（按时间排列）
     if(dummyHead==firstNode || msTimeOut<=firstNode->msTimeOut)
     { BINODE_INSERT(node,dummyHead,next,prev);
@@ -1437,14 +1448,15 @@ U32 dtmr_getMode(void *dnode){
   }else return 0;
 }
 
-void dtmr_test(HAND htmr){
-  TDateTimer *dtimer=(TDateTimer *)htmr;
+void dtmr_test(HAND dtmr){
+  TDateTimer *dtimer=(TDateTimer *)dtmr;
   TDateTimerNode *timerlist=dtimer->_tsklist;
   TDateTimerNode *node;
   int now_time=os_msRunTime();
   extern void MemoPrint(const char *format, ...);
   for(node=timerlist->next;node!=timerlist; node=node->next){
-   // std_printf("ID:%d_%d, mode=%x, dutime=%ds, next=%x,pre=%x\r\n",node->nodeID[0],node->nodeID[1],node->mode,(node->msTimeOut>now_time)?((node->msTimeOut-now_time)/1000):0, (int)node->next,(int)node->prev);
+   // printf("ID:%d_%d, mode=%x, dutime=%ds, next=%x,pre=%x\r\n",node->nodeID[0],node->nodeID[1],node->mode,(node->msTimeOut>now_time)?((node->msTimeOut-now_time)/1000):0, (int)node->next,(int)node->prev);
+     printf("%s: ID_%d_%d, mode=%x, dutime=%ds, next=%x,pre=%x\r\n",dtimer->name,node->nodeID[0],node->nodeID[1],node->mode,((int)node->msTimeOut-now_time)/1000, (int)node->next,(int)node->prev);
   }
 }
 
@@ -1469,7 +1481,7 @@ static void *_DTMR_timer_check_proc(void *param){
           os_releaseSemphore(dtimer->_task_mutex);
           dtimer->OnTimeout(dtimer, dueNode->ExtraData,dueNode->nodeID,nodeName);
           os_obtainSemphore(dtimer->_task_mutex);
-          if(timerlist->next!=dueNode || now_time_ms<dueNode->msTimeOut || !(dueNode->mode&DTMR_ENABLE))continue;
+          if(timerlist->next!=dueNode || now_time_ms<dueNode->msTimeOut)continue;
           else if((dueNode->mode&DTMR_LOCK)) goto label_postpone_locked_node;
         }
         if((dueNode->mode&DTMR_CYCLE)){
@@ -1477,6 +1489,7 @@ static void *_DTMR_timer_check_proc(void *param){
        	  //Log_AppendText("Locked_%d node_%x_%x timeout!",dueNode->locked,dueNode->nodeID[0],dueNode->nodeID[1]);
           continue;
         }
+
         if((dueNode->mode&DTMR_TIMEOUT_DELETE)){
           //执行删除操作的线程必须亲自取得节点锁
           if(os_tryObtainSemphore(dueNode->semlock)){
@@ -1497,8 +1510,8 @@ static void *_DTMR_timer_check_proc(void *param){
         }
       }
       //测试删除并释放无效节点(ID和Name都为空的节点)
-      if(dueNode->next)
-      { BINODE_REMOVE(dueNode,prev,next);//移出时间轴链表
+      if(dueNode->next){
+        BINODE_REMOVE(dueNode,prev,next);//移出时间轴链表
         BINODE_REMOVE(dueNode,up,down);//从哈希链表中删除节点
         dueNode->next=NULL; //add only for debug
       }else puts("###################### Free fail, node alread destroyed！");
@@ -1506,7 +1519,7 @@ static void *_DTMR_timer_check_proc(void *param){
       os_destroySemphore(dueNode->semlock);
       free(dueNode);
     }
-    msWaitTime=(dueNode==timerlist)?30000:(dueNode->msTimeOut-now_time_ms);
+    msWaitTime=(dueNode==timerlist)?50000:(dueNode->msTimeOut-now_time_ms);
     os_releaseSemphore(dtimer->_task_mutex);
     os_waitSemphore(dtimer->_sem_timer,msWaitTime);
   }
@@ -1516,7 +1529,7 @@ static void *_DTMR_timer_check_proc(void *param){
   return NULL;
 }
 
-HAND dtmr_create(int hashLen,U32 msHoldTime,DTMR_TimeoutEvent OnTimeout)
+HAND dtmr_create(int hashLen,U32 msHoldTime,DTMR_TimeoutEvent OnTimeout,char *taskName)
 { int c_hashMapLength=(hashLen>0)?hashLen:256;
   int ttask_size=(sizeof(TDateTimer)&0x3)?(sizeof(TDateTimer)|0x03)+1:sizeof(TDateTimer);//address alignment
   int list_binode_size=sizeof(TBinodeLink)*2;
@@ -1529,6 +1542,8 @@ HAND dtmr_create(int hashLen,U32 msHoldTime,DTMR_TimeoutEvent OnTimeout)
     dtimer->dataProtectTime=(msHoldTime)?msHoldTime:3000;
     dtimer->hashMapLength=c_hashMapLength;
     dtimer->_tsklist=(TDateTimerNode *)((char *)dtimer+ttask_size);
+    if(taskName && *taskName)strncpy(dtimer->name,taskName,32);
+    else dtimer->name[0]='\0';
     BINODE_ISOLATE(dtimer->_tsklist,prev,next);
     dtimer->_hashMapTable=(TBinodeLink *)((char *)dtimer+ttask_size+list_binode_size);
     for(i=0;i<c_hashMapLength;i++)

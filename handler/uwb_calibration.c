@@ -38,7 +38,7 @@ static void sdr_ranging_request(TCalibrationControl *ctrl){
   msgBody->anchorCount=anchorCount;
   for(i=0;i<anchorCount;i++){
     TUWBAnchor *anchor=lab->anchors[i];
-    if(i==stage) msgBody->rangeMode=1;//主测距模式
+    if(i==stage)msgBody->rangeMode=1;//主测距模式
     else msgBody->rangeMode=2;//从测距模式
     msg_request(msg,&anchor->terminal,NULL,0);
   }
@@ -72,7 +72,10 @@ void Handle_MSG_USR_CALIBRATION_START(TMcPacket *packet){
         errnum=0;
       }
     }
-    else errnum=2;
+    else{
+       errnum=2;
+       printf("failt to find labid:%d\n",labID);
+    }
   }
   else errnum=3;
   msg_ack_general(packet,errnum);
@@ -80,7 +83,7 @@ void Handle_MSG_USR_CALIBRATION_START(TMcPacket *packet){
 
 
 
-void Response_MSG_DSA_CALIBRATION_RANGING(TMcPacket *response,void *extraData){
+void GeneralResponse_MSG_SDR_CALIBRATION_RANGING(TMcPacket *response,void *extraData){
   TUWBAnchor *anchor=(TUWBAnchor *)response->terminal;
   TUWBLocalAreaBlock *lab=anchor->lab;
   TCalibrationControl *ctrl=(TCalibrationControl *)dtmr_findByID(dtmr_commLinks,MSG_USR_CALIBRATION_START,lab->id,TRUE);             
@@ -96,8 +99,11 @@ void Response_MSG_DSA_CALIBRATION_RANGING(TMcPacket *response,void *extraData){
     dtmr_unlock(ctrl,CALIBRATION_TIMEOUT_MS);        
     if(ctrl->rangingAckMask==(1<<anchorCount)-1){//收到所有应答
      //返回客户端标定的进度 
+      puts("收到所有应答");
     }
   }
+  
+  puts("GeneralResponse_MSG_SDR_CALIBRATION_RANGING");
 }
 
 

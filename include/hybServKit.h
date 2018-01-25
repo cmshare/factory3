@@ -37,7 +37,7 @@ int    tm_getLocalHour(time_t timestamp);//get local hour from unix timestamp;
 //---------------------------------------------------------------------------
 enum  {DTMR_LOCK=0x80000000U,DTMR_ENABLE=0x40000000U,DTMR_CYCLE=0x20000000U,DTMR_TIMEOUT_DELETE=0x10000000U,DTMR_OVERRIDE=0x08000000U,DTMR_EXIST=0x00000001U,DTMR_TIMEOUT_STOP=0,DTMR_DISABLE=0,DTMR_NOVERRIDE=0};
 typedef void (*DTMR_TimeoutEvent)(HAND,void *,U32 *,char *);
-HAND  dtmr_create(int hashLen,U32 msHoldTime,DTMR_TimeoutEvent OnTimeout);
+HAND  dtmr_create(int hashLen,U32 msHoldTime,DTMR_TimeoutEvent OnTimeout,char *taskName);
 void  dtmr_destroy(HAND dtimer);
 void *dtmr_add(HAND dtimer,U32 nodeIDL,U32 nodeIDH,char *nodeName,void *nodeData,U32 dataSize,U32 msLifeTime,U32 *options);
 void *dtmr_find(HAND dtimer,U32 nodeIDL,U32 nodeIDH,char *nodeName,BOOL addLock);
@@ -52,6 +52,7 @@ char *dtmr_getName(void *dnode);
 int   dtmr_getSize(void *dnode);
 U32   dtmr_getMode(void *dnode);
 void  dtmr_delete(void *dnode);
+void  dtmr_test(HAND dtmr);
 //---------------------------------------------------------------------------	
 MYSQL *db_conn(void);
 void   db_open(char *dbhost,char *dbname,char *dbuser,char *password);

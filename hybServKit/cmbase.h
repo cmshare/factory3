@@ -56,7 +56,7 @@ U32     os_msRunTime(void);
 #define os_createSemphore(pSemHandle,initialValue)      do{*(pSemHandle)=malloc(sizeof(sem_t));sem_init((sem_t *)(*(pSemHandle)),0,initialValue);}while(0)
 #define os_obtainSemphore(semHandle)                    (sem_wait((sem_t *)semHandle)==0)
 #define os_tryObtainSemphore(semHandle)                 (sem_trywait((sem_t *)semHandle)==0)
-#define os_waitSemphore(semHandle,msWaitTime)           do{struct timeval _waitimeout;U32 part_msec=msWaitTime%1000;gettimeofday(&_waitimeout,NULL);_waitimeout.tv_sec+=(msWaitTime/1000);if(part_msec){_waitimeout.tv_usec+=(part_msec*1000);if(_waitimeout.tv_usec>=1000000){_waitimeout.tv_usec-=1000000;_waitimeout.tv_sec++;}} sem_timedwait((sem_t *)semHandle,(const struct timespec *)&_waitimeout);}while(0)
+#define os_waitSemphore(semHandle,msWaitTime)           do{struct timeval _nowtime;struct timespec _waitimeout;U32 tv_ns,part_msec=msWaitTime%1000;gettimeofday(&_nowtime,NULL);_waitimeout.tv_sec=_nowtime.tv_sec+(msWaitTime/1000);tv_ns=_nowtime.tv_usec*1000;if(part_msec){tv_ns+=(part_msec*1000000);if(tv_ns>=1000000000){tv_ns-=1000000000;_waitimeout.tv_sec++;}}_waitimeout.tv_nsec=tv_ns;sem_timedwait((sem_t *)semHandle,(const struct timespec *)&_waitimeout);}while(0)
 #define os_releaseSemphore(semHandle)                   sem_post((sem_t *)semHandle)
 #define os_destroySemphore(semHandle)                   do{sem_destroy((sem_t *)semHandle);free(semHandle);}while(0)
 #define os_closeSocket(s)                               close(s)
@@ -198,7 +198,7 @@ int    mb_receive(void *msgBuf,int bufSize);
 //---------------------------------------------------------------------------
 enum  {DTMR_LOCK=0x80000000U,DTMR_ENABLE=0x40000000U,DTMR_CYCLE=0x20000000U,DTMR_TIMEOUT_DELETE=0x10000000U,DTMR_OVERRIDE=0x08000000U,DTMR_EXIST=0x00000001U,DTMR_TIMEOUT_STOP=0,DTMR_DISABLE=0,DTMR_NOVERRIDE=0};
 typedef void (*DTMR_TimeoutEvent)(HAND,void *,U32 *,char *);
-HAND  dtmr_create(int hashLen,U32 sHoldTime,DTMR_TimeoutEvent OnTimeout);
+HAND  dtmr_create(int hashLen,U32 sHoldTime,DTMR_TimeoutEvent OnTimeout,char *taskName);
 void  dtmr_destroy(HAND dtimer);
 void *dtmr_add(HAND dtimer,U32 nodeIDL,U32 nodeIDH,char *nodeName,void *nodeData,U32 dataSize,U32 msLifeTime,U32 *options);
 void *dtmr_find(HAND dtimer,U32 nodeIDL,U32 nodeIDH,char *nodeName,BOOL addLock);
