@@ -126,11 +126,11 @@ TUWBAnchor *_UWB_anchor_load(U32 anchorID,U32 labID){
    if(uwbLab){
      if(anchorID){
        int i;
-       TUWBAnchor **pAnchor=uwbLab->anchors;
-       for(i=0;i<uwbLab->anchorCount;i++,pAnchor++){
-         if((*pAnchor)->terminal.id==anchorID){
+       TUWBAnchor **pAnchors=uwbLab->anchors;
+       for(i=0;i<uwbLab->anchorCount;i++){
+         if(pAnchors[i]->terminal.id==anchorID){//这条语句有时会异常？？
            U32 dtmrOptions=DTMR_LOCK|DTMR_TIMEOUT_STOP|DTMR_ENABLE;
-           desAnchor=*pAnchor;
+           desAnchor=pAnchors[i];
            if(!dtmr_update(desAnchor,HEARTBEAT_OVERTIME_MS,dtmrOptions)){
              //Should never reach here
              exit_with_exception("uwb lab system error!");
@@ -178,7 +178,7 @@ TUWBAnchor *_UWB_anchor_load(U32 anchorID,U32 labID){
              U32 options=DTMR_LOCK|DTMR_NOVERRIDE|DTMR_TIMEOUT_STOP|((anchorIndex==index)?DTMR_ENABLE:DTMR_DISABLE);
              U32 new_sessionid=session_new();
              TUWBAnchor *anchorNode=(TUWBAnchor *)dtmr_add(dtmr_termLinks,new_sessionid,0,NULL,NULL,sizeof(TUWBAnchor),HEARTBEAT_OVERTIME_MS,&options);
-             if(anchorNode && !(options&DTMR_EXIST)){
+             if(anchorNode){
                anchorNode->index=index;
                anchorNode->lab=uwbLab;
                anchorNode->mode=anchorModes[index];
@@ -329,8 +329,12 @@ static void _UWBLab_checkDelete(TUWBLocalAreaBlock *lab){
       if(anchor->terminal.term_state>DEV_STATE_OFFLINE)break; 
     } 
     if(i==anchorCount){//all lab anchors are offline
+      for(i=0;i<anchorCount;i++){
+        TUWBAnchor *anchor=lab->anchors[i];
+        dtmr_delete(anchor);
+      }
       dtmr_delete(lab);
-      printf("##########Lab#%d deleted\n",lab->id);
+      printf("##########Lab#%d and anchors deleted\n",lab->id);
     }
   }
 }
