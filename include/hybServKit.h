@@ -26,6 +26,7 @@ THskPacket *hsk_assemble(TNetAddr *peerAddr,void *sliceData,int sliceLen,int pre
 int    hsk_httpPost(char *URL,void *formData,int formSize,char *responseBuffer,int buffersize,int sTimeout);
 int    hsk_httpGet(char *URL,char *responseBuffer,int buffersize,int sTimeout);
 BOOL   hsk_isTcpSocket(int socket);
+BOOL   hsk_isTcpAddr(TNetAddr *addr);
 char  *str_xmlSeek(char *xmlbuf,char *key,int *len);
 char  *str_itemSeek(char *itemlist,char *item,char splitter);
 int    str_lenOfUTF8(char *str);
@@ -35,7 +36,7 @@ int    str_bytesToHex(void *srcData,int dataLen,char *hexBuf,int bufSize,char sp
 char  *str_keySeek(char *keyList,char *key,char splitter);
 int    tm_getLocalHour(time_t timestamp);//get local hour from unix timestamp;
 //---------------------------------------------------------------------------
-enum  {DTMR_LOCK=0x80000000U,DTMR_ENABLE=0x40000000U,DTMR_CYCLE=0x20000000U,DTMR_TIMEOUT_DELETE=0x10000000U,DTMR_OVERRIDE=0x08000000U,DTMR_EXIST=0x00000001U,DTMR_TIMEOUT_STOP=0,DTMR_DISABLE=0,DTMR_NOVERRIDE=0};
+enum  {DTMR_LOCK=0x80000000U,DTMR_ENABLE=0x40000000U,DTMR_CYCLE=0x20000000U,DTMR_TIMEOUT_DELETE=0x10000000U,DTMR_OVERRIDE=0x08000000U,DTMR_EXIST=0x00000001U,DTMR_TIMEOUT_STOP=0,DTMR_DISABLE=0,DTMR_NOVERRIDE=0,DTMR_UNLOCK_DELETE=-1,DTMR_UNLOCK_DISABLE=-2};
 typedef void (*DTMR_TimeoutEvent)(HAND,void *,U32 *,char *);
 HAND  dtmr_create(int hashLen,U32 msHoldTime,DTMR_TimeoutEvent OnTimeout,char *taskName);
 void  dtmr_destroy(HAND dtimer);

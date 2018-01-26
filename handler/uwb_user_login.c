@@ -20,50 +20,49 @@ void Handle_MSG_USR_LOGIN(TMcPacket *packet){
      MYSQL_RES *res=db_queryf("select id,sessionid,groupid,sex,lablist from `uwb_user` where username='%s' and password=%s",username,pwd_pattern);
      if(res){ 
         MYSQL_ROW row=mysql_fetch_row(res);
-        if(row)
-        { userid=atoi(row[0]);
+        if(row){
+          userid=atoi(row[0]);
           sessionid=atoi(row[1]);
           userGroup=atoi(row[2]);
           sex_type=atoi(row[3]);
           if(row[4] && row[4][0]) strncpy(bindedIDs,row[4],256);
-          if(sessionid)
-          { terminal=(TTerminal *)dtmr_findById(dtmr_termLinks,sessionid,TRUE);
-            if(terminal)
-            {  if(terminal->id!=userid)
-               { //上一次使用的session已经被其他用户占用（所查到的terminal是其他用户）。
-                 sessionid=0;
-                 dtmr_unlock(terminal,0); 
-                 terminal=NULL;
-               }
-               else if(memcmp(&terminal->loginAddr,&packet->peerAddr,sizeof(TNetAddr))!=0)
-               { //同一用户名多处登录的状况
-                 //将原先登录的用户踢下线
-                 if(terminal->loginAddr.socket==0||(hsk_isTcpSocket(terminal->loginAddr.socket) && terminal->loginAddr.socket==packet->peerAddr.socket)){
-                    //对于TCP连接，socket已经被新连接覆盖的情况,无法通知原先登录的用户
-                    terminal->loginAddr=packet->peerAddr;
-                 }
-                 else{
-                   TMcMsg *reqmsg=msg_alloc(MSG_SUR_KICKOFF,0);
-                   msg_request(reqmsg,terminal,NULL,0);
-                   //安全删除原先登录的用户节点
-                   terminalKickOff=terminal;
-                   dtmr_unlock(terminal,0);//删除后的节点无法被查找，但会保留足够长一段时间
-                   dtmr_delete(terminal);//删除后的节点无法被查找，但会保留足够长一段时间
-                   terminal=NULL;
-                   //sessionid=0; //sessionID可继续使用
-                 }
-               }
+          if(sessionid){
+            terminal=(TTerminal *)dtmr_findById(dtmr_termLinks,sessionid,TRUE);
+            if(terminal){
+              if(terminal->id!=userid){
+                //上一次使用的session已经被其他用户占用（所查到的terminal是其他用户）。
+                sessionid=0;
+                dtmr_unlock(terminal,0); 
+                terminal=NULL;
+              }
+              else{
+                TNetAddr *loginAddr=&terminal->loginAddr,*peerAddr=&packet->peerAddr;
+                if(memcmp(loginAddr,peerAddr,sizeof(TNetAddr))!=0){
+                //同一用户名多处登录的状况
+                //将原先登录的用户踢下线
+                if(loginAddr->ip!=peerAddr->ip || (!hsk_isTcpAddr(loginAddr) && loginAddr->port!=peerAddr->port)){
+                  TMcMsg *reqmsg=msg_alloc(MSG_SUR_KICKOFF,0);
+                  msg_request(reqmsg,terminal,NULL,0);
+                  //安全删除原先登录的用户节点
+                  terminalKickOff=terminal;
+                  dtmr_unlock(terminal,DTMR_UNLOCK_DELETE);//删除后的节点无法被查找，但会保留足够长一段时间
+                  terminal=NULL;
+                  //sessionid=0; //sessionID可继续使用
+                }
+                else{
+                  //对于TCP连接，socket已经被新连接覆盖的情况,无法通知原先登录的用户
+                  *loginAddr=*peerAddr;
+                }
+              }
             }
           }
         }
-        mysql_free_result(res);  
+      }
+      mysql_free_result(res);  
     }
   }
-  if(!userid)
-  { error_code=1;//用户名或密码错误。
-  }
-  else
-  {
+  if(!userid)  error_code=1;//用户名或密码错误。
+  else {
     if(!sessionid)sessionid=session_new(); 
     if(!terminal || strcmp(bindedIDs,((TTermUser *)terminal)->bindedLabIDs)!=0){
       U32 dtmrOptions=DTMR_LOCK|DTMR_ENABLE|DTMR_TIMEOUT_DELETE|DTMR_OVERRIDE;

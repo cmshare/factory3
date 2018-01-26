@@ -2,7 +2,7 @@
 //---------------------------------------------------------------------------
 #define DISCRETETRANSFER_OVERTIME_MS     2000
 #define DiscreteTransferIDL(addr)      ((addr)->socket|((addr)->port<<16))
-#define TCP_CONNECTION_TIMEOUT_S          100    //unit:second                                                                         |typedef struct
+#define TCP_CONNECTION_TIMEOUT_S          180    //unit:second                                                                         |typedef struct
 #define SOCKET_MAX_DGRAMSIZE              1500  
 #define SOCKET_MAX_LISTEN                 FD_SETSIZE  //服务器最大并发连接数（不超过FD_SETSIZE,修改FD_SETSIZE在系统头文件中。）
 //---------------------------------------------------------------------------
@@ -519,6 +519,10 @@ BOOL hsk_isTcpSocket(int socket){
   return (socket!=hskUdpSocket);
 }
 
+BOOL hsk_isTcpAddr(TNetAddr *addr){
+  return (addr->socket!=hskUdpSocket);
+}
+
 void hsk_sendData(void *data,int datalen,TNetAddr *peerAddr){
   if(peerAddr){
     int peerSocket=peerAddr->socket;
@@ -549,7 +553,7 @@ void hsk_releaseTcpPacket(THskPacket *packet,BOOL isHeapMsg,BOOL isShortConnect)
 		//puts("##NO.17 hsk_releasePacket");
   if(isShortConnect||isHeapMsg){
       const U32 closeWaitTime_ms=1000;	//通过超时关闭socket
-      U32 dtmrOptions=DTMR_TIMEOUT_DELETE|DTMR_OVERRIDE;
+      U32 dtmrOptions=DTMR_ENABLE|DTMR_TIMEOUT_DELETE|DTMR_OVERRIDE;
       dtmr_add(discreteTransferLinks,DiscreteTransferIDL(&packet->addr),packet->addr.ip,NULL,&isShortConnect,sizeof(isShortConnect),closeWaitTime_ms,&dtmrOptions);
   }
 }

@@ -9,5 +9,5 @@
 *.bak
 cscope.*
 uwbd*
-core.*
+core*
 

@@ -16,6 +16,7 @@ void Response_MSG_TIMEOUT(TMcPacket *request,void *extraData){
 void Response_MSG_ACK_GENERAL(TMcPacket *response,void *extraData){
   switch(((TMSG_ACK_GENERAL *)response->msg.body)->ack_msgid){
     GENERAL_RESPONSE(MSG_SDR_CALIBRATION_RANGING)
+    GENERAL_RESPONSE(MSG_SUR_CALIBRATION_PROGRESS)
     default: puts("######Response_MSG_ACK_GENERAL fail to match request!");
   }
 }

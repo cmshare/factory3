@@ -1,7 +1,7 @@
 #include "mc_routine.h"
 #include "uwb_model.h"
 
-#define CALIBRATION_TIMEOUT_MS        5000
+#define CALIBRATION_TIMEOUT_MS        8000
 //---------------------------------------------------------------------------
 #pragma pack (push,1)
 //---------------------------------------------------------------------------
@@ -40,10 +40,14 @@ static void sdr_ranging_request(TCalibrationControl *ctrl){
     TUWBAnchor *anchor=lab->anchors[i];
     if(i==stage)msgBody->rangeMode=1;//主测距模式
     else msgBody->rangeMode=2;//从测距模式
+    if(i>0)msg_updateSyncID(msg);
     msg_request(msg,&anchor->terminal,NULL,0);
   }
 }
-
+//---------------------------------------------------------------------------
+void GeneralResponse_MSG_SUR_CALIBRATION_PROGRESS(TMcPacket *response,void *extraData){
+//  puts("GeneralResponse_MSG_SUR_CALIBRATION_PROGRESS");
+}
 //---------------------------------------------------------------------------
 void Handle_MSG_USR_CALIBRATION_START(TMcPacket *packet){
   TMSG_USR_CALIBRATION_START *request=(TMSG_USR_CALIBRATION_START *)packet->msg.body;
@@ -74,7 +78,7 @@ void Handle_MSG_USR_CALIBRATION_START(TMcPacket *packet){
     }
     else{
        errnum=2;
-       printf("failt to find labid:%d\n",labID);
+      // printf("failt to find labid:%d\n",labID);
     }
   }
   else errnum=3;
@@ -82,8 +86,14 @@ void Handle_MSG_USR_CALIBRATION_START(TMcPacket *packet){
 }
 
 
+void calibrate_progress_notify(TTerminal *user,U32 progress){ 
+  TMcMsg *msg=msg_alloc(MSG_SUR_CALIBRATION_PROGRESS,sizeof(U32));
+  *((U32 *)msg->body)=progress;
+  msg_request(msg,user,NULL,0);
+}
 
 void GeneralResponse_MSG_SDR_CALIBRATION_RANGING(TMcPacket *response,void *extraData){
+
   TUWBAnchor *anchor=(TUWBAnchor *)response->terminal;
   TUWBLocalAreaBlock *lab=anchor->lab;
   TCalibrationControl *ctrl=(TCalibrationControl *)dtmr_findByID(dtmr_commLinks,MSG_USR_CALIBRATION_START,lab->id,TRUE);             
@@ -97,13 +107,13 @@ void GeneralResponse_MSG_SDR_CALIBRATION_RANGING(TMcPacket *response,void *extra
       }
     }
     dtmr_unlock(ctrl,CALIBRATION_TIMEOUT_MS);        
-    if(ctrl->rangingAckMask==(1<<anchorCount)-1){//收到所有应答
-     //返回客户端标定的进度 
-      puts("收到所有应答");
+
+    calibrate_progress_notify(ctrl->user,ctrl->rangingAckMask); 
+    if(ctrl->rangingAckMask==(1<<anchorCount)-1){
+       //收到所有应答,等待基站返回测量的距离
     }
   }
   
-  puts("GeneralResponse_MSG_SDR_CALIBRATION_RANGING");
 }
 
 
@@ -132,24 +142,25 @@ void Handle_MSG_DSR_CALIBRATION_RESULT(TMcPacket *packet){
         }
         if(rangeCount==anchorCount-1){//收集齐一轮数据
           if(stage<anchorCount){//还有下一轮要继续
-            ctrl->stage++;
+            ctrl->stage=++stage;
             sdr_ranging_request(ctrl);
-          }
-          else{//已经完成所有轮测距
-            //进行均值计算，并向客户端返回计算结果
-            #define get_distance(Stage,Index) ctrl->distances[Stage*anchorCount+Index]
-            TMcMsg *msg=msg_alloc(MSG_SUR_CALIBRATION_RESULT,sizeof(TUWBLabConfig));
-            TUWBLabConfig *retBody=(TUWBLabConfig *)msg->body;
-            retBody->labID=lab->id;
-            retBody->algorithm=0;;
-            retBody->ab_mm=(get_distance(0,1)+get_distance(1,0))>>1;
-            retBody->ac_mm=(get_distance(0,2)+get_distance(2,0))>>1;
-            retBody->bc_mm=(get_distance(1,2)+get_distance(2,1))>>1;
-            retBody->da_mm=(get_distance(3,0)+get_distance(0,3))>>1;
-            retBody->db_mm=(get_distance(3,1)+get_distance(1,3))>>1;
-            retBody->dc_mm=(get_distance(3,2)+get_distance(2,3))>>1;
-            retBody->anchorCount=anchorCount;
-            msg_request(msg,ctrl->user,NULL,0);
+            calibrate_progress_notify(ctrl->user,0x80000000|ctrl->stage); 
+            if(stage==anchorCount){//已经完成所有轮测距
+              //进行均值计算，并向客户端返回计算结果
+              #define get_distance(Stage,Index) ctrl->distances[Stage*anchorCount+Index]
+              TMcMsg *msg=msg_alloc(MSG_SUR_CALIBRATION_RESULT,sizeof(TUWBLabConfig));
+              TUWBLabConfig *retBody=(TUWBLabConfig *)msg->body;
+              retBody->labID=lab->id;
+              retBody->algorithm=0;;
+              retBody->ab_mm=(get_distance(0,1)+get_distance(1,0))>>1;
+              retBody->ac_mm=(get_distance(0,2)+get_distance(2,0))>>1;
+              retBody->bc_mm=(get_distance(1,2)+get_distance(2,1))>>1;
+              retBody->da_mm=(get_distance(3,0)+get_distance(0,3))>>1;
+              retBody->db_mm=(get_distance(3,1)+get_distance(1,3))>>1;
+              retBody->dc_mm=(get_distance(3,2)+get_distance(2,3))>>1;
+              retBody->anchorCount=anchorCount;
+              msg_request(msg,ctrl->user,NULL,0);
+            }
           }  
         }
         errnum=0;

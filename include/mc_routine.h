@@ -30,6 +30,7 @@ void msg_sendto(TMcMsg *msg,TNetAddr *peerAddr);
 void msg_request(TMcMsg *msg,TTerminal *terminal,void *extraData,U32 extraSize);
 void msg_ack(TMcPacket *srcPacket,void *msgData,int dataLen);
 void msg_ack_general(TMcPacket *srcPacket,U8 errCode);
+void msg_updateSyncID(TMcMsg *msg);
 void push_device_msg(U32 deviceID,int msgType,char *msgContent);
 int push_group_msg(U32 usrgroup,U32 devgroup,int msgType,char *msgContent,char *msgTitle);
 //---------------------------------------------------------------------------

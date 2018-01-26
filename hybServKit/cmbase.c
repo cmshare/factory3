@@ -1378,12 +1378,24 @@ void dtmr_unlock(void *dnode,U32 msUpdateLifeTime){
       if(dtimer && dtimer->magicNumber==DTMR_MAGIC_NUMBER){
         if(os_obtainSemphore(dtimer->_task_mutex)){
           if(msUpdateLifeTime){
-            if(msUpdateLifeTime==(U32)-1){//立刻到期
-              _DTMR_UpdateTimeout((TDateTimer *)dtimer,tskNode,0);
-            }
-            else{
-              tskNode->msLifeTime=msUpdateLifeTime;
-              if(tskNode->mode&DTMR_ENABLE)_DTMR_UpdateTimeout((TDateTimer *)dtimer,tskNode,msUpdateLifeTime);
+            switch(msUpdateLifeTime){
+               case (U32)DTMR_UNLOCK_DELETE:
+                     if(tskNode->nodeID[0]||tskNode->nodeID[1]||(DTMR_NODE_NAME(tskNode))[0]){
+                       _DTMR_MarkToDelete(tskNode);//延时方式安全删除
+                     }
+                     break;
+               case (U32)DTMR_UNLOCK_DISABLE:
+                     if(tskNode->mode&DTMR_ENABLE){
+                         BINODE_REMOVE(tskNode,next,prev);
+                         BINODE_ISOLATE(tskNode,next,prev);
+                         tskNode->mode&=~DTMR_ENABLE;
+                     }
+                     break;
+                   break;
+              default:
+                   tskNode->msLifeTime=msUpdateLifeTime;
+                   if(tskNode->mode&DTMR_ENABLE)_DTMR_UpdateTimeout((TDateTimer *)dtimer,tskNode,msUpdateLifeTime);
+
             }
           }
           tskNode->mode&=~DTMR_LOCK;

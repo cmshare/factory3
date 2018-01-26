@@ -45,6 +45,16 @@ static BOOL packet_checksum_and_decrypt(TMcPacket *packet){
   return FALSE;
 }
 //---------------------------------------------------------------------------
+static BOOL msg_checksum_and_decrypt(TMcMsg *msg){
+  int msgLen=MC_MSG_SIZE(msg);
+  if(msg_ValidChecksum(msg,msgLen)){
+    if(msg->bodylen>0 && msg->encrypt>ENCRYPTION_NONE) msg_decrypt(msg);
+    return TRUE;		
+  }
+  return FALSE;
+}
+//---------------------------------------------------------------------------
+#if 0 
 static TMcPacket *NET_RecvPacket(void *dgramBuffer,int bufferSize){
    TMcPacket *packet=(TMcPacket *)dgramBuffer;
    TMcMsg *msg=&packet->msg;
@@ -57,8 +67,8 @@ static TMcPacket *NET_RecvPacket(void *dgramBuffer,int bufferSize){
 
    if(sliceLen>sizeof(TMcMsg)){
       msgsize=MC_MSG_SIZE(msg);
-      if(sliceLen==msgsize && packet_checksum_and_decrypt(packet))return packet; 
-      else if(msgsize>MAXLEN_MSG_PACKET)msgsize=0;
+      if(sliceLen>=msgsize && packet_checksum_and_decrypt(packet))return packet; 
+      if(msgsize>MAXLEN_MSG_PACKET)msgsize=0;
    }
    else{
      if(!sliceLen)return NULL;
@@ -72,17 +82,13 @@ static TMcPacket *NET_RecvPacket(void *dgramBuffer,int bufferSize){
         else hsk_releaseTcpPacket((THskPacket *)packet,TRUE,FALSE); 
      }
    }
- /*  else{
-    //处理校验错误的UDP报文(将其转发至监控端 ,鉴于复杂度将不处理错误的TCP报文) TTerminal *terminal=dtmr_find2(dtmr_termLinks,0,0,&packet->peerAddr,sizeof(TNetAddr),T_NODE_OFFSET(TTerminal,loginAddr),0);
-     if(terminal && terminal->spyAddr.ip)hsk_sendData(msg,sliceLen,&terminal->spyAddr);	
-   }*/
    return NULL;  	
 }
-//---------------------------------------------------------------------------
-static void *mc_dispatch_proc(void *param){
+
+static void *mc_dispatch_proc(void *param){ //没有考虑粘包问题
   extern void mc_dispatchmsg(TMcPacket *);
-  int bufferSize=sizeof(TMcPacket)+MAXLEN_IP_FRAGMENT;
-  void *pbuf=malloc(bufferSize);
+  const int bufferSize=sizeof(TMcPacket)+MAXLEN_IP_FRAGMENT;
+  const void *pbuf=malloc(bufferSize);
   while(1)//process user request packet  
   { TMcPacket *packet=NET_RecvPacket(pbuf,bufferSize);
     if(packet)
@@ -98,6 +104,60 @@ static void *mc_dispatch_proc(void *param){
   }
   return NULL;
 }
+#else
+//---------------------------------------------------------------------------
+static void *mc_dispatch_proc(void *param){
+  extern void mc_dispatchmsg(TMcPacket *);
+  const int bufferSize=sizeof(TMcPacket)+MAXLEN_IP_FRAGMENT;
+  TMcPacket *headPacket=(TMcPacket *)malloc(bufferSize);
+  TMcPacket *headPacketLimit=(TMcPacket *)((char *)headPacket+bufferSize);
+  while(1){//process user request packet  
+    TMcPacket *handledPacket=NULL;
+    TMcMsg *msg=&headPacket->msg;
+    int msgsize,sliceLen=hsk_readData(msg,bufferSize-sizeof(TMcPacket),&headPacket->peerAddr);
+    #ifdef DEBUG_MODE
+      Log_AppendData(msg,sliceLen,&headPacket->peerAddr,FALSE);
+    #endif
+    if(sliceLen>sizeof(TMcMsg)){
+      msgsize=MC_MSG_SIZE(msg);
+      if(sliceLen>=msgsize && packet_checksum_and_decrypt(headPacket)){
+        mc_dispatchmsg(handledPacket=headPacket);
+        sliceLen-=msgsize;
+        while(sliceLen>0){//处理粘包
+           msg=(TMcMsg *)((char *)msg+msgsize);
+           if(sliceLen>sizeof(TMcMsg)){
+             msgsize=MC_MSG_SIZE(msg);
+             if(sliceLen>=msgsize && msg_checksum_and_decrypt(msg)){
+               TMcPacket *packet=T_PARENT_NODE(TMcPacket,msg,msg);               
+               packet->terminal=headPacket->terminal;
+               packet->peerAddr=headPacket->peerAddr;  
+               mc_dispatchmsg(handledPacket=packet);
+               sliceLen-=msgsize;
+             }
+             else break;
+           }
+           else msgsize=0;
+        }
+      }
+    }
+    else msgsize=0;
+ 	 
+    if(sliceLen>0 && headPacket->peerAddr.socket!=svrUdpSocket && msgsize<MAXLEN_MSG_PACKET){ //针对TCP报文数据进行组装 	
+      TMcPacket *packet=(TMcPacket *)hsk_assemble(&headPacket->peerAddr,msg,sliceLen,msgsize);
+      if(packet){
+        if(packet_checksum_and_decrypt(packet)){
+          mc_dispatchmsg(handledPacket=packet);
+        }
+        else hsk_releaseTcpPacket((THskPacket *)packet,TRUE,FALSE); 
+      }
+    }
+    if(handledPacket && handledPacket->peerAddr.socket!=svrUdpSocket){
+      hsk_releaseTcpPacket((THskPacket *)handledPacket,handledPacket>headPacketLimit||handledPacket<headPacket,handledPacket->msg.tcpshortconn);
+    }	
+  }
+  return NULL;
+}
+#endif
 //---------------------------------------------------------------------------
 static void *uwb_location_proc(void *param){
   extern void udp_process_packet(void *,int,TNetAddr *);

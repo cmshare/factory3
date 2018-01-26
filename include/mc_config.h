@@ -40,11 +40,11 @@
 #define MAX_SOCKET_RECV_MEM         124928  //SOCKET接收缓冲区最大值(取/proc/sys/net/core/rmem_max)
 #define MAX_SOCKET_SEND_MEM         124928  //SOCKET发送缓冲区最大值(取/proc/sys/net/core/wmem_max)
 #define SERVER_BAND_WIDTH           5       //服务器流出带宽(单位Mbit)，据实填写。
-#define REQUEST_RETRY_COUNT         3 
 #define NUM_DISPATCH_THREAD         8 
 #define PacketBufferMaxSize         80
+#define REQUEST_RETRY_COUNT         3 
+#define REQMSG_RETRY_INTERVAL_MS    3000///3000
 #define MIN_SMS_INTERVAL_MS         50000
-#define REQMSG_RETRY_INTERVAL_MS    3000
 #define HEARTBEAT_OVERTIME_MS       120000    //3次以上无心跳视为超时
 #define VERIFYCODE_LIFETIME_MS      300000
 #define SPAN_MSG_PUSH_FILTER_MS     10000

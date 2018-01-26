@@ -2,7 +2,7 @@
 //---------------------------------------------------------------------------
 #define AES128_KEY_CODE          "hello my darling"
 #define MSG_SNDQUEUE_SIZE        SERVER_BAND_WIDTH*1024*1024*4U            //服务器在32秒钟内最多发送的数据量（单位Byte)
-static  U32 msg_sndbuf_pos=0;
+static  U32 msg_sndbuf_pos=0,msg_syncid=0;
 static  char *msg_sndbuf=NULL;
 static sem_t msg_alloc_lock;
 static HAND dtmr_suspendRequestLinks=NULL;
@@ -12,7 +12,7 @@ extern void AES128_encrypt(void *data,int dataLen);
 extern void AES128_decrypt(void *data,int dataLen);
 
 //---------------------------------------------------------------------------
-#define MSG_ALLOC_MEM(pMsg,msgLen)\
+#define MSG_ALLOC_MEM(pMsg,msgLen,allocSyncID)\
 { sem_wait(&msg_alloc_lock);\
 	pMsg=(TMcMsg *)&msg_sndbuf[msg_sndbuf_pos];\
 	msg_sndbuf_pos+=(msgLen);\
@@ -23,12 +23,19 @@ extern void AES128_decrypt(void *data,int dataLen);
   else if(msg_sndbuf_pos&0x03)\
   { msg_sndbuf_pos=(msg_sndbuf_pos|0x03)+1;/*地址对齐*/ \
   }\
-	sem_post(&msg_alloc_lock);\
+  if(allocSyncID)pMsg->synid=++msg_syncid;\
+  sem_post(&msg_alloc_lock);\
+}
+//---------------------------------------------------------------------------
+void msg_updateSyncID(TMcMsg *msg){
+  sem_wait(&msg_alloc_lock);
+  msg->synid=++msg_syncid;
+  sem_post(&msg_alloc_lock);
 }
 //---------------------------------------------------------------------------
 TMcMsg *msg_alloc(U32 msgID,U32 bodyLen){
   TMcMsg *msg;
-  MSG_ALLOC_MEM(msg,sizeof(TMcMsg)+bodyLen+1);
+  MSG_ALLOC_MEM(msg,sizeof(TMcMsg)+bodyLen+1,!(msgID&MSG_ACK_MASK));
   msg->msgid=msgID;
   msg->bodylen=bodyLen;
   msg->encrypt=ENCRYPTION_NONE;
@@ -62,7 +69,7 @@ TMcMsg *msg_encrypt(TMcMsg *msg)
       int new_bodylen=(msg->bodylen&0x0F)?(msg->bodylen|0x0F)+1:msg->bodylen;//21×?16×??ú??êy±?3¤?è;
       int new_msgLen=sizeof(TMcMsg)+new_bodylen+1;
       int old_msgDatalen=sizeof(TMcMsg)+msg->bodylen;
-      MSG_ALLOC_MEM(encryptMsg,new_msgLen);
+      MSG_ALLOC_MEM(encryptMsg,new_msgLen,FALSE);
       memcpy(encryptMsg,msg,old_msgDatalen);
       if(new_bodylen>msg->bodylen)memset((char *)encryptMsg+old_msgDatalen,0,new_bodylen-msg->bodylen);
       AES128_encrypt(encryptMsg->body,new_bodylen);//加密消息体
@@ -96,10 +103,10 @@ BOOL msg_response_dispatch(TMcPacket *packet,void msgHandle(TMcPacket *,void *))
       if(_ackSession==packet->msg.sessionid /*&& susRequest->ack_msg==packet->msg.msgid*/){
         // RESPONSE_APPENDIX(packet)=susRequest->extraData;
         msgHandle(packet,susRequest->extraData);
-        dtmr_unlock(susRequest,0);
-        dtmr_delete(susRequest);
+        dtmr_unlock(susRequest,DTMR_UNLOCK_DELETE);
         return TRUE;
       }
+      //else printf("#session match fail:%x:%x\n",_ackSession,packet->msg.sessionid);
     }	
     dtmr_unlock(susRequest,0);
   }
@@ -146,25 +153,21 @@ void msg_sendto(TMcMsg *msg,TNetAddr *peerAddr){
 }
 
 void msg_send(TMcMsg *msg,TMcPacket *packet,TTerminal *terminal){
-  static U32 msg_synid=0;
   TNetAddr *peerAddr;
   if(packet){
     peerAddr=&packet->peerAddr;
     msg->encrypt=packet->msg.encrypt;
     if((msg->msgid&MSG_ACK_MASK)) msg->synid=packet->msg.synid;
-    else msg->synid=++msg_synid;
     DBLog_AppendMsg(msg,packet->terminal,TRUE);
   }
   else if(terminal){
     peerAddr=&terminal->loginAddr;
     msg->encrypt=terminal->encrypt;
-    msg->synid=++msg_synid;
     DBLog_AppendMsg(msg,terminal,TRUE);
   }
   else{
     peerAddr=NULL;
     msg->encrypt=ENCRYPTION_NONE;
-    msg->synid=++msg_synid;
   }
   msg_sendto(msg,peerAddr);
 }

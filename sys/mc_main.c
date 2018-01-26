@@ -14,6 +14,7 @@ extern void session_init(void);
 //---------------------------------------------------------------------------
 int main(int argc, char* argv[]){
   //printf("SOCKET_MAX_LISTEN=%d\r\n",SOCKET_MAX_LISTEN);
+
   srand((int)time(NULL));
 
   session_init();

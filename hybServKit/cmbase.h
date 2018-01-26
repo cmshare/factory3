@@ -196,7 +196,7 @@ int    mb_receive(void *msgBuf,int bufSize);
 //---------------------------------------------------------------------------
 // TDateTimer
 //---------------------------------------------------------------------------
-enum  {DTMR_LOCK=0x80000000U,DTMR_ENABLE=0x40000000U,DTMR_CYCLE=0x20000000U,DTMR_TIMEOUT_DELETE=0x10000000U,DTMR_OVERRIDE=0x08000000U,DTMR_EXIST=0x00000001U,DTMR_TIMEOUT_STOP=0,DTMR_DISABLE=0,DTMR_NOVERRIDE=0};
+enum  {DTMR_LOCK=0x80000000U,DTMR_ENABLE=0x40000000U,DTMR_CYCLE=0x20000000U,DTMR_TIMEOUT_DELETE=0x10000000U,DTMR_OVERRIDE=0x08000000U,DTMR_EXIST=0x00000001U,DTMR_TIMEOUT_STOP=0,DTMR_DISABLE=0,DTMR_NOVERRIDE=0,DTMR_UNLOCK_DELETE=-1,DTMR_UNLOCK_DISABLE=-2};
 typedef void (*DTMR_TimeoutEvent)(HAND,void *,U32 *,char *);
 HAND  dtmr_create(int hashLen,U32 sHoldTime,DTMR_TimeoutEvent OnTimeout,char *taskName);
 void  dtmr_destroy(HAND dtimer);
