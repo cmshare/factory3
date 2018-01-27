@@ -1,4 +1,5 @@
 #include "mc_routine.h"
+#include "uwb_model.h"
 //---------------------------------------------------------------------------
 HAND dtmr_termLinks=NULL,dtmr_commLinks=NULL;
 static HAND uwb_session_locker=NULL;
@@ -52,18 +53,21 @@ static void terminal_HbTimeout(HAND ttasks,void *taskCode,U32 *taskID,char *task
              //释放session,并修改终端state(确定全套系统离线).
              TNetAddr *peerAddr=&terminal->loginAddr;
              db_queryf("update uwb_anchor set sessionid=0,logouttime=unix_timestamp() ,state=%d where id=%u",DEV_STATE_OFFLINE,terminal->id);
-             if(hsk_isTcpSocket(peerAddr->socket)) shutdown(peerAddr->socket,2);
-             terminal->loginAddr.socket=0;//mark disconnected
+             if(hsk_isTcpAddr(peerAddr)) hsk_shuttownTcpClient(peerAddr);
+             peerAddr->socket=0;//mark disconnected
              terminal->term_state=DEV_STATE_OFFLINE;//mark offline，不要直接修改sessionid为０
-             UWBLab_logoutAnchor(terminal);
+             UWBLab_checkDelete(((TUWBAnchor *)terminal)->lab);
              //device_stateNotifyUser(terminal,0);//通知绑定手机终端摄像头已离线
            //staticMap_generate(terminal);
          }
          break;
     case TT_USER: //user
            db_queryf("update `uwb_user` set sessionid=0,logouttime=unix_timestamp() where id=%u",terminal->id);
+           TNetAddr *peerAddr=&terminal->loginAddr;
+           if(hsk_isTcpAddr(peerAddr)) hsk_shuttownTcpClient(peerAddr);
+           peerAddr->socket=0;//mark disconnected
            printf("user offline:%s\n",terminal->name);
-           UWBLab_logoutUser(terminal);
+           UWBLab_switchUser(terminal,FALSE,0);
          break;
   }
   DBLog_AppendData("\xFF\xFF\xFF\xFF\x01",5,terminal); //超时登出日志
@@ -94,12 +98,13 @@ void terminal_init(void)
   U32 local_UdpSocket=hsk_getUdpSocket();
   dtmr_termLinks=dtmr_create(1024,HEARTBEAT_OVERTIME_MS,terminal_HbTimeout,"dtmr_termLinks");
   dtmr_commLinks=dtmr_create(64,60000,NULL,"dtmr_commLinks");
-  res=db_query("select id,username,sessionid,ip,port,groupid,sex from `uwb_user` where sessionid<>0");
+  res=db_query("select id,username,sessionid,ip,port,groupid,sex,lablist  from `uwb_user` where sessionid<>0");
   if(res)
   { MYSQL_ROW row;
     while((row = mysql_fetch_row(res)))
     { U32 sessionid=atoi(row[2]);//field["session"]
-      TTerminal *node=(TTerminal *)dtmr_add(dtmr_termLinks,sessionid,0,0,NULL,sizeof(TTermUser),HEARTBEAT_OVERTIME_MS,&dtmrOptions);
+      char *lablist=row[7];
+      TTerminal *node=(TTerminal *)dtmr_add(dtmr_termLinks,sessionid,0,0,NULL,sizeof(TTermUser)+(lablist?strlen(lablist):0),HEARTBEAT_OVERTIME_MS,&dtmrOptions);
       if(node)
       { memset(node,0,sizeof(TTermUser));
         node->term_type=TT_USER;
@@ -111,6 +116,8 @@ void terminal_init(void)
         node->loginAddr.port=atoi(row[4]);//field["port"]
         node->group=atoi(row[5]);//field["groupid"]
         node->sex_type=atoi(row[6]);//field["sex"]
+        if(lablist)strcpy(((TTermUser *)node)->bindedLabIDs,lablist);
+        BINODE_ISOLATE(&((TTermUser *)node)->listenLinker,prev,next);
       }
     }   
     mysql_free_result(res); 

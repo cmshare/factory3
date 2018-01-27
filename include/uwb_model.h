@@ -133,9 +133,8 @@ BOOL UWB_frame_checkcrc(UWBRawFrame *frame);
 void *UWBLab_load(U32 anchorID,U32 labID);
 //---------------------------------------------------------------------------
 BOOL load_lab_configs(int labID,TUWBLocalAreaBlock *configs,U32 *anchorIDs,int *anchorModes,int maxAnchorCount);
-void UWBLab_logoutUser(TTerminal *user);
-void UWBLab_logoutAnchor(TTerminal *anchor);
-BOOL UWBLab_switchUser(TTerminal *user,U32 newLabID);//暂时不考虑绑定关系
+void UWBLab_checkDelete(TUWBLocalAreaBlock *lab);
+BOOL UWBLab_switchUser(TTerminal *user,BOOL ownedUserLock,U32 newLabID);//暂时不考虑绑定关系
 void UWB_update_labconfig(TUWBLabConfig *labcfg);
 //---------------------------------------------------------------------------
 void MemoPrint(const char *format, ...);

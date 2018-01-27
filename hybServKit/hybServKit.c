@@ -386,30 +386,33 @@ int hsk_readDatagram(void *recvBuf, int bufSize,TNetAddr *peerAddr){
   return readbytes;
 }
 //---------------------------------------------------------------------------
-static void Shuttown_TcpClient(TNetAddr *peerAddr){
-  if(peerAddr &&  os_obtainSemphore(tcpConnections.close_mutex)){
-    TTcpClients *activeList=&tcpConnections.actives;
-    TTcpClients *node=activeList->next;
-    while(node!=activeList){
-      if(node->addr.socket==peerAddr->socket){
-        if(node->addr.ip==peerAddr->ip && node->addr.port==peerAddr->port){
-          //tcp server执行shutdown是通知peersocket关闭，等收到peersocket关闭的消息后再调用closesocket关闭localsocket。
-      	  shutdown(peerAddr->socket,2);
-          //Log_AppendText("shutdown socket:%d",peerAddr->socket);
+void hsk_shuttownTcpClient(TNetAddr *peerAddr){
+  if(peerAddr){
+    int peerSocket=peerAddr->socket; 
+    if(peerSocket && peerSocket!=hskUdpSocket && os_obtainSemphore(tcpConnections.close_mutex)){
+      TTcpClients *activeList=&tcpConnections.actives;
+      TTcpClients *node=activeList->next;
+      while(node!=activeList){
+        if(node->addr.socket==peerSocket){
+          if(node->addr.ip==peerAddr->ip && node->addr.port==peerAddr->port){
+            //tcp server执行shutdown是通知peersocket关闭，等收到peersocket关闭的消息后再调用closesocket关闭localsocket。
+      	   shutdown(peerSocket,2);
+            //Log_AppendText("shutdown socket:%d",peerAddr->socket);
+          }
+          break;
         }
-        break;
-      }
-      else node=node->next;
-    }  
-    os_releaseSemphore(tcpConnections.close_mutex);
-    //if(node==activeList)Log_AppendText("client socket already closed by peer!");
+        else node=node->next;
+      }  
+      os_releaseSemphore(tcpConnections.close_mutex);
+      //if(node==activeList)Log_AppendText("client socket already closed by peer!");
+    }
   }  
 }
 
 static void OnDiscreteTransferTimeout(HAND ttsk,void *node,U32 *taskid,char *taskName){
   U32 isShortConnect= (dtmr_getSize(node)==sizeof(BOOL))?*(BOOL *)node:FALSE; //默认为长连接
   if(isShortConnect){
-     Shuttown_TcpClient((TNetAddr *)taskid);
+     hsk_shuttownTcpClient((TNetAddr *)taskid);
      Log_AppendText("discrete overtime and close tcp short connection!");
   }
   else{
@@ -515,12 +518,8 @@ int hsk_getTcpSocket(void)
 { return hskTcpSocket;
 }
 
-BOOL hsk_isTcpSocket(int socket){
-  return (socket!=hskUdpSocket);
-}
-
 BOOL hsk_isTcpAddr(TNetAddr *addr){
-  return (addr->socket!=hskUdpSocket);
+  return (addr->socket && addr->socket!=hskUdpSocket);
 }
 
 void hsk_sendData(void *data,int datalen,TNetAddr *peerAddr){
@@ -544,6 +543,7 @@ void hsk_sendData(void *data,int datalen,TNetAddr *peerAddr){
     sendloop(data,datalen);
   }
 }
+
 
 void hsk_releaseTcpPacket(THskPacket *packet,BOOL isHeapMsg,BOOL isShortConnect){
 		/*两个作用(巧妙):

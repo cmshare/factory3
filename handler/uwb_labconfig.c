@@ -115,10 +115,10 @@ void Handle_MSG_USR_SWITCHLAB(TMcPacket *packet){
   if(request->labID){
     char strLabID[8];
     str_itoa(request->labID,strLabID);
-    if(str_itemSeek(bindLabList,strLabID,',') && UWBLab_switchUser(packet->terminal,request->labID)) errCode=0;
+    if(str_itemSeek(bindLabList,strLabID,',') && UWBLab_switchUser(packet->terminal,FALSE,request->labID)) errCode=0;
   }
   else{
-    if(UWBLab_switchUser(packet->terminal,0))errCode=0;
+    if(UWBLab_switchUser(packet->terminal,FALSE,0))errCode=0;
   }
   msg_ack_general(packet,errCode);
 }

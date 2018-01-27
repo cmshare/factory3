@@ -2,7 +2,7 @@
 #include "uwb_model.h"
 
 void Handle_MSG_USR_LOGIN(TMcPacket *packet){
-  TTerminal *terminal=NULL,*terminalKickOff=NULL;
+  TTerminal *terminal=NULL;
   TMSG_USR_LOGIN *content=(TMSG_USR_LOGIN *)packet->msg.body;
   char bindedIDs[256]="\0";
   char *username=content->name;
@@ -29,7 +29,7 @@ void Handle_MSG_USR_LOGIN(TMcPacket *packet){
           if(sessionid){
             terminal=(TTerminal *)dtmr_findById(dtmr_termLinks,sessionid,TRUE);
             if(terminal){
-              if(terminal->id!=userid){
+              if(terminal->id!=userid || terminal->term_type!=TT_USER){
                 //上一次使用的session已经被其他用户占用（所查到的terminal是其他用户）。
                 sessionid=0;
                 dtmr_unlock(terminal,0); 
@@ -44,14 +44,17 @@ void Handle_MSG_USR_LOGIN(TMcPacket *packet){
                   TMcMsg *reqmsg=msg_alloc(MSG_SUR_KICKOFF,0);
                   msg_request(reqmsg,terminal,NULL,0);
                   //安全删除原先登录的用户节点
-                  terminalKickOff=terminal;
+                  //UWBLab_logoutUser
+                  UWBLab_switchUser(terminal,TRUE,0);
+                  BINODE_REMOVE(&((TTermUser *)terminal)->listenLinker,prev,next);
                   dtmr_unlock(terminal,DTMR_UNLOCK_DELETE);//删除后的节点无法被查找，但会保留足够长一段时间
                   terminal=NULL;
+                  printf("#####################User kick off\n");
                   //sessionid=0; //sessionID可继续使用
                 }
                 else{
                   //对于TCP连接，socket已经被新连接覆盖的情况,无法通知原先登录的用户
-                  *loginAddr=*peerAddr;
+                  *loginAddr=*peerAddr;//更新登录地址
                 }
               }
             }
@@ -64,28 +67,38 @@ void Handle_MSG_USR_LOGIN(TMcPacket *packet){
   if(!userid) error_code=1;//用户名或密码错误。
   else {
     if(!sessionid)sessionid=session_new(); 
-    if(!terminal || strcmp(bindedIDs,((TTermUser *)terminal)->bindedLabIDs)!=0){
-      U32 dtmrOptions=DTMR_LOCK|DTMR_ENABLE|DTMR_TIMEOUT_DELETE|DTMR_OVERRIDE;
-      terminal=(TTerminal *)dtmr_add(dtmr_termLinks,sessionid,0,0,NULL,sizeof(TTermUser)+strlen(bindedIDs),HEARTBEAT_OVERTIME_MS,&dtmrOptions);
-      memset(terminal,0,sizeof(TTermUser));
-      strcpy(((TTermUser *)terminal)->bindedLabIDs,bindedIDs);
-      BINODE_ISOLATE(&((TTermUser *)terminal)->listenLinker,prev,next);
+    if(terminal && strcmp(bindedIDs,((TTermUser *)terminal)->bindedLabIDs)!=0){
+      UWBLab_switchUser(terminal,TRUE,0);
+      dtmr_unlock(terminal,DTMR_UNLOCK_DELETE);
+      terminal=NULL;
     }
-    terminal->term_type=TT_USER;
-    terminal->id=userid;
-    terminal->loginAddr=packet->peerAddr;//登录方式必须要求UDP
-    terminal->sessionid=sessionid;
-    terminal->group=userGroup;
-    terminal->sex_type=sex_type;
-    terminal->encrypt=packet->msg.encrypt;//消息体默认加密方式
-    strncpy(terminal->name,username,MAXLEN_USERNAME+1);
+    while(!terminal){
+      U32 dtmrOptions=DTMR_LOCK|DTMR_ENABLE|DTMR_TIMEOUT_DELETE|DTMR_NOVERRIDE;
+      terminal=(TTerminal *)dtmr_add(dtmr_termLinks,sessionid,0,0,NULL,sizeof(TTermUser)+strlen(bindedIDs),HEARTBEAT_OVERTIME_MS,&dtmrOptions);
+      if(dtmrOptions&DTMR_EXIST){
+        dtmr_unlock(terminal,0);
+        terminal=NULL;
+        sessionid=session_new(); 
+      }
+      else{
+        memset(terminal,0,sizeof(TTermUser));
+        terminal->term_type=TT_USER;
+        terminal->id=userid;
+        terminal->loginAddr=packet->peerAddr;
+        terminal->sessionid=sessionid;
+        terminal->group=userGroup;
+        terminal->sex_type=sex_type;
+        terminal->encrypt=packet->msg.encrypt;//消息体默认加密方式
+        BINODE_ISOLATE(&((TTermUser *)terminal)->listenLinker,prev,next);
+        strcpy(((TTermUser *)terminal)->bindedLabIDs,bindedIDs);
+        strncpy(terminal->name,username,MAXLEN_USERNAME+1);
+      }
+    }
     db_queryf("update `uwb_user` set sessionid=%u,ip=%u,port=%u,logintime=unix_timestamp() where id=%u",sessionid,packet->peerAddr.ip,packet->peerAddr.port,userid);
   }
   packet->terminal=terminal;
-  if(terminal){
-    //UWBLab_addUser(terminal);
-    dtmr_unlock(terminal,HEARTBEAT_OVERTIME_MS);
-  }
+  if(terminal) dtmr_unlock(terminal,HEARTBEAT_OVERTIME_MS);
+
   TMcMsg *msg=msg_alloc(packet->msg.msgid|MSG_ACK_GENERAL,sizeof(TMSG_SUA_LOGIN));
   TMSG_SUA_LOGIN *ackBody=(TMSG_SUA_LOGIN *)msg->body;
   //ackBody->error=error_code;
@@ -99,7 +112,7 @@ void Handle_MSG_USR_LOGIN(TMcPacket *packet){
 
 void Handle_MSG_USR_LOGOUT(TMcPacket *packet){
   db_queryf("update `uwb_user` set sessionid=0,logouttime=unix_timestamp() where id=%u",packet->terminal->id);
-  UWBLab_logoutUser(packet->terminal);
+  UWBLab_switchUser(packet->terminal,FALSE,0);
   dtmr_delete(packet->terminal);
   msg_ack_general(packet,0);
 }

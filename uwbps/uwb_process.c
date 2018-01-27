@@ -114,10 +114,9 @@ static void UWB_updateCache(TDataProcessed *cacheData,UWBRawFrame *frame,U32 upd
 //当一个lab下的基站全部超时后，可以定期清理掉，目前没有实现。
 void *UWBLab_load(U32 anchorID,U32 labID){
   //从当前已经存在的所有基站分组中查找基站节点
-   TUWBLocalAreaBlock *node,*uwbLab;
-   TUWBAnchor *desAnchor=NULL;
    if(!labID)return NULL;//允许anchorID为0,但是labID不能为0;
-   uwbLab=dtmr_findById(dtmr_labLinks,labID,TRUE);
+   TUWBAnchor *desAnchor=NULL;
+   TUWBLocalAreaBlock *uwbLab=dtmr_findById(dtmr_labLinks,labID,TRUE);
    if(uwbLab){
      if(anchorID){
        int i;
@@ -211,26 +210,28 @@ void *UWBLab_load(U32 anchorID,U32 labID){
    }
    return desAnchor;
 }
-
-int UWB_process_frame(UWBRawFrame *uwbFrame){
+//---------------------------------------------------------------------------
+void udp_process_packet(void *packetData,int packetLen,TNetAddr *peerAddr){
+  #define FRAMES(name)  ((UWBRawFrame *)packetData)->name
+  if(packetLen!=UWB_FRAME_SIZE)return;
   int ret_error;
-  U32 curTagID=uwbFrame->tagID;
-  U32 curAnchorID=uwbFrame->anchorID;
-  U32 frame_session=uwbFrame->sessionID;
+  U32 curTagID=FRAMES(tagID);
+  U32 curAnchorID=FRAMES(anchorID);
+  U32 frame_session=FRAMES(sessionID);
   if(frame_session==0 || curTagID==0 || curAnchorID==0)ret_error=UWBERR_INVALID_FRAME_FORMAT;
-  else if(!UWB_frame_checknum(uwbFrame))ret_error=UWBERR_CHECKNUM;
+  else if(!msg_ValidChecksum(packetData,sizeof(UWBRawFrame)))ret_error=UWBERR_CHECKNUM;
   else {
     //从标签列表中获取标签节点并加锁(不允许其它线程并发修改此标签)。
     //如果标签不存在则自动创建并初始化
     TUWBTag *curTag=UWB_obtain_tag(curTagID);
-    if(!curTag)return ret_error=UWBERR_INVALID_TAG;
+    if(!curTag) ret_error=UWBERR_INVALID_TAG;
     else {
       //根据anchorID以及当前相关的tagID，找到anchorNode，并更新对应关系（不存在则创建）
       int curTime=os_msRunTime(); //系统当前时间
       TUWBAnchor *curAnchor=(TUWBAnchor *)dtmr_findById(dtmr_termLinks,frame_session,FALSE);//不需要加锁(基站节点都是只读信息))
       if(!curAnchor || curAnchor->terminal.id!=curAnchorID)ret_error=UWBERR_INVALID_ANCHOR;
       else {
-        int curSyncID=uwbFrame->syncID;
+        int curSyncID=FRAMES(syncID);
         int tagID_cacheIndex=curTagID&((1<<FRAME_CACHE_BITLEN)-1);
         int syncID_cacheIndex=curSyncID&((1<<FRAME_CACHE_BITLEN)-1);
         TUWBLocalAreaBlock *curLab=curAnchor->lab;
@@ -242,7 +243,7 @@ int UWB_process_frame(UWBRawFrame *uwbFrame){
           if(anchors[i]->terminal.id==curAnchorID){
             cacheHitCount++;
             //将数据帧更新到相应标符的frameCache中。
-            UWB_updateCache(cacheData,uwbFrame,curTime);
+            UWB_updateCache(cacheData,(UWBRawFrame *)packetData,curTime);
           }
           else{
             if(cacheData->tagID==curTagID && cacheData->syncID==curSyncID && curTime-cacheData->recvTime<FRAME_ASSEMBLE_TIMEOUT_MS ){
@@ -256,7 +257,7 @@ int UWB_process_frame(UWBRawFrame *uwbFrame){
             int used_time_ms=curTime-curTag->bufPointStartTime;
             int bufPointIndex=curTag->bufPointIndex++;
             TAccAndPoint *point=&curTag->bufPointArray[bufPointIndex];
-            point->accData=uwbFrame->accData;
+            point->accData=FRAMES(accData);
             point->x=(U32)(coord->x*1000);//unit transform from float type of m into integer type of mm
             point->y=(U32)(coord->y*1000);//unit transform from float type of m into integer type of mm
             if(used_time_ms>MAXLEN_BUFFER_LOCATE_TIMESPAN){
@@ -281,7 +282,7 @@ int UWB_process_frame(UWBRawFrame *uwbFrame){
       UWB_release_tag(curTag);//解锁
     }
   }
-  return ret_error;
+  //return ret_error;
 }
 
 void UWB_location_post(TUWBLocalAreaBlock *lab,TUWBTag *tagNode,int pointCount){
@@ -309,15 +310,7 @@ void UWB_location_post(TUWBLocalAreaBlock *lab,TUWBTag *tagNode,int pointCount){
   }
 }
 
-//lab cannot be deleted until all users and anchors are offline
-static void UWBLab_checkDelete(TUWBLocalAreaBlock *lab,U32 labID){
-  if(lab){
-    if(!dtmr_lock(lab)) exit_with_exception("uwb lab lock fail!");
-  }
-  else{
-    lab=dtmr_findById(dtmr_labLinks,labID,TRUE);
-    if(!lab)return;
-  }
+static void _UWBLab_checkDelete(TUWBLocalAreaBlock *lab){
   TBinodeLink *listeningUsers=&lab->listeningUsers;
   if(listeningUsers->next==listeningUsers){//no any user is listening this lab
     int i,anchorCount=lab->anchorCount;
@@ -335,52 +328,59 @@ static void UWBLab_checkDelete(TUWBLocalAreaBlock *lab,U32 labID){
       return;
     }
   }
-  dtmr_unlock(lab,0);
 }
-
-void UWBLab_logoutAnchor(TTerminal *anchor){
-  puts("####logoutAnchor");
-  TUWBLocalAreaBlock *lab=((TUWBAnchor *)anchor)->lab;
-  if(lab) UWBLab_checkDelete(lab,0);
-}
-
-void UWBLab_logoutUser(TTerminal *user){//将用户监听从所有lab中移出
-  puts("####logoutUser");
-  dtmr_lock(user);
-  TBinodeLink *node=&((TTermUser *)user)->listenLinker;
-  if(node->next && node->next!=node){
-    U32 currentLabID=((TTermUser *)user)->currentLabID;
-    BINODE_REMOVE(node,prev,next);
-    BINODE_ISOLATE(node,prev,next);
-    if(currentLabID){
-      UWBLab_checkDelete(NULL,currentLabID);
-      ((TTermUser *)user)->currentLabID=0;
+//lab cannot be deleted until all users and anchors are offline
+void UWBLab_checkDelete(TUWBLocalAreaBlock *lab){
+  if(lab){
+    if(dtmr_lock(lab)){
+      _UWBLab_checkDelete(lab);
+      dtmr_unlock(lab,0);
     }
+    else exit_with_exception("uwb lab lock fail!");
   }
-  dtmr_unlock(user,0);
 }
 
-BOOL UWBLab_switchUser(TTerminal *user,U32 newLabID){//暂时不考虑绑定关系
+BOOL UWBLab_switchUser(TTerminal *user,BOOL ownedUserLock,U32 newLabID){
   U32 currentLabID=((TTermUser *)user)->currentLabID;
   if(currentLabID==newLabID)return TRUE;
-  else if(newLabID==0){
-    UWBLab_logoutUser(user); 
-    return TRUE;
-  }
   else{
-    dtmr_lock(user);
+    BOOL ret=FALSE;
+    if(!ownedUserLock)dtmr_lock(user);
     TBinodeLink *listenNode=&((TTermUser *)user)->listenLinker;
-    if(listenNode->next && listenNode->next!=listenNode)BINODE_REMOVE(listenNode,prev,next);
-    UWBLab_checkDelete(NULL,currentLabID);
-    TUWBLocalAreaBlock *uwbLab=(TUWBLocalAreaBlock *)dtmr_findById(dtmr_labLinks,newLabID,TRUE);
-    if(!uwbLab)uwbLab=(TUWBLocalAreaBlock *)UWBLab_load(0,newLabID);
-    if(uwbLab){
-      BINODE_INSERT(listenNode,&uwbLab->listeningUsers,prev,next);
-      ((TTermUser *)user)->currentLabID=newLabID;
-      dtmr_unlock(uwbLab,UWB_LAB_TIMEOUT_MS);  
+#if 1 //errorCheck
+    if(currentLabID){
+      if(!listenNode->next || listenNode->next==listenNode){
+        exit_with_exception("currentLabID<>0 but listenNode is empty!");
+      }
     }
-    dtmr_unlock(user,0);
-    return (uwbLab!=NULL);
+    else if(listenNode->next && listenNode->next!=listenNode){
+       exit_with_exception("currentLabID==0 but listenNode is not empty!");
+    } 
+#endif
+    if(currentLabID){
+      TUWBLocalAreaBlock *uwbLab=(TUWBLocalAreaBlock *)dtmr_findById(dtmr_labLinks,currentLabID,TRUE);
+      if(uwbLab){ 
+        //由于listenNode挂载在lab的listeningUsers链表中，所以要事先要对lab加锁
+        BINODE_REMOVE(listenNode,prev,next);
+        BINODE_ISOLATE(listenNode,prev,next);
+        _UWBLab_checkDelete(uwbLab);
+        ((TTermUser *)user)->currentLabID=0;
+        dtmr_unlock(uwbLab,0);  
+        if(newLabID==0)ret=TRUE;
+      }
+    }
+    if(newLabID){
+      TUWBLocalAreaBlock *uwbLab=(TUWBLocalAreaBlock *)dtmr_findById(dtmr_labLinks,newLabID,TRUE);
+      if(!uwbLab)uwbLab=(TUWBLocalAreaBlock *)UWBLab_load(0,newLabID);
+      if(uwbLab){
+        BINODE_INSERT(listenNode,&uwbLab->listeningUsers,prev,next);
+        ((TTermUser *)user)->currentLabID=newLabID;
+        dtmr_unlock(uwbLab,UWB_LAB_TIMEOUT_MS);  
+        ret=TRUE;
+      }
+    }
+    if(!ownedUserLock)dtmr_unlock(user,0);
+    return ret;
   }
 }
 
@@ -401,21 +401,10 @@ void UWB_update_labconfig(TUWBLabConfig *labcfg){
   }
 }
 
-BOOL UWB_frame_checknum(UWBRawFrame *frame){
- return msg_ValidChecksum(frame,sizeof(UWBRawFrame)); 
-}
-
-
 void UWB_system_init(void){
   os_createSemphore(&uwb_global_locker, 1);/*信号量初值为1，作互斥量*/
   dtmr_labLinks=dtmr_create(32,UWB_LAB_TIMEOUT_MS,NULL,"dtmr_labLinks");
   init_tag_list();
   //初始房间列表的dummy header
 }
-//---------------------------------------------------------------------------
-void udp_process_packet(void *packetData,int packetLen,TNetAddr *peerAddr){
-  if(packetLen==UWB_FRAME_SIZE){
-    UWB_process_frame((UWBRawFrame *)packetData);
-  }                    
-  //printf("get frame size of %d:\r\n",packetLen);
-}
+
