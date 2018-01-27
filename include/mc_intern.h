@@ -31,7 +31,7 @@ typedef struct{
 
 typedef struct{
   TTerminal terminal;
-  char username[(MAXLEN_USERNAME|0x3)+1];
+  char username[(MAXLEN_USERNAME|0x3)+1];//跟Terminal的name地址对应，并且字对齐，
   //void *currentLab;
   U32 currentLabID;
   TBinodeLink listenLinker;
@@ -40,7 +40,7 @@ typedef struct{
 
 typedef struct
 { TTerminal terminal;
-  char sn[SIZE_SN_DEVICE+1];
+  char sn[(SIZE_SN_DEVICE|0x3)+1];//跟Terminal的name地址对应，并且字对齐，
   U32 boxid;
   U32 onlinetime;//上线的时间
 }TTermDevice;
