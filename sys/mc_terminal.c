@@ -109,9 +109,9 @@ void terminal_init(void)
       { memset(node,0,sizeof(TTermUser));
         node->term_type=TT_USER;
         node->sessionid=sessionid;
-        node->loginAddr.socket=local_UdpSocket;
         node->id=atoi(row[0]);//field["id"]
-        strncpy(node->name,row[1],SIZE_MOBILE_PHONE+1);//field["username"]
+        strncpy(node->name,row[1],MAXLEN_USERNAME+1);//field["username"]
+        node->loginAddr.socket=local_UdpSocket;
         node->loginAddr.ip=atoi(row[3]);//field["ip"]
         node->loginAddr.port=atoi(row[4]);//field["port"]
         node->group=atoi(row[5]);//field["groupid"]

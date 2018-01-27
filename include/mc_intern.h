@@ -29,9 +29,9 @@ typedef struct{
   char name[0];
 }TTerminal;
 
-typedef struct _TTermUser
-{ TTerminal terminal;
-  char username[SIZE_MOBILE_PHONE+1];
+typedef struct{
+  TTerminal terminal;
+  char username[(MAXLEN_USERNAME|0x3)+1];
   //void *currentLab;
   U32 currentLabID;
   TBinodeLink listenLinker;
