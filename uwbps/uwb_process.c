@@ -26,11 +26,6 @@ todo: 超时机制：
 #define  UWB_GLOBAL_LOCK() os_obtainSemphore(uwb_global_locker)
 #define  UWB_GLOBAL_UNLOCK() os_releaseSemphore(uwb_global_locker)
 
-void UWB_global_lock(BOOL lock){
-  if(lock)UWB_GLOBAL_LOCK();
-  else UWB_GLOBAL_UNLOCK();
-}
-
 static void init_tag_list(){
   int i,tagListSize=TAGLIST_HASH_LEN*sizeof(TUWBTag);
   hashTagList=(TUWBTag *)malloc(tagListSize);
@@ -117,7 +112,7 @@ static void UWB_updateCache(TDataProcessed *cacheData,UWBRawFrame *frame,U32 upd
 //如果基站节点不存在则自动创建
 //注：每个lab下的基站心跳超时后，是超时停止而不是超时释放。
 //当一个lab下的基站全部超时后，可以定期清理掉，目前没有实现。
-TUWBAnchor *_UWB_anchor_load(U32 anchorID,U32 labID){
+void *UWBLab_load(U32 anchorID,U32 labID){
   //从当前已经存在的所有基站分组中查找基站节点
    TUWBLocalAreaBlock *node,*uwbLab;
    TUWBAnchor *desAnchor=NULL;
@@ -131,7 +126,11 @@ TUWBAnchor *_UWB_anchor_load(U32 anchorID,U32 labID){
          if(pAnchors[i]->terminal.id==anchorID){//这条语句有时会异常？？
            U32 dtmrOptions=DTMR_LOCK|DTMR_TIMEOUT_STOP|DTMR_ENABLE;
            desAnchor=pAnchors[i];
-           if(!dtmr_update(desAnchor,HEARTBEAT_OVERTIME_MS,dtmrOptions)){
+           if(dtmr_update(desAnchor,HEARTBEAT_OVERTIME_MS,dtmrOptions)){
+              dtmr_unlock(uwbLab,UWB_LAB_TIMEOUT_MS);  
+              return desAnchor;
+           }
+           else{
              //Should never reach here
              exit_with_exception("uwb lab system error!");
            }
@@ -143,10 +142,10 @@ TUWBAnchor *_UWB_anchor_load(U32 anchorID,U32 labID){
          exit_with_exception("uwb lab system error!");
        }
      }
-     else{//不指定anchorID时，返回第１个anchor,且不加锁。
+     else{//不指定anchorID时，返回Lab地址(加锁)。
        desAnchor=uwbLab->anchors[0];
+       return uwbLab;
      }
-     dtmr_unlock(uwbLab,UWB_LAB_TIMEOUT_MS);  
    }
    else{//基站节点及其分组都不存在，则新建基站分组及其所有基站节点
      const int  maxAnchorCount=6;
@@ -195,7 +194,7 @@ TUWBAnchor *_UWB_anchor_load(U32 anchorID,U32 labID){
              }
            }
            UWB_lab_init(uwbLab);
-           if(!anchorID) desAnchor=uwbLab->anchors[0];//不指定anchorID时，返回第１个anchor，并且不加锁
+           if(!anchorID)return uwbLab;// 不指定anchorID时，返回第加锁的UwbLab
          }
        }
        else{//load config fail!
@@ -212,15 +211,6 @@ TUWBAnchor *_UWB_anchor_load(U32 anchorID,U32 labID){
    }
    return desAnchor;
 }
-
-TUWBAnchor *UWB_anchor_load(U32 anchorID,U32 labID){
-   TUWBAnchor *ret;
-   UWB_GLOBAL_LOCK();
-   ret=_UWB_anchor_load(anchorID,labID);
-   UWB_GLOBAL_UNLOCK();
-   return ret;
-}
-
 
 int UWB_process_frame(UWBRawFrame *uwbFrame){
   int ret_error;
@@ -320,7 +310,14 @@ void UWB_location_post(TUWBLocalAreaBlock *lab,TUWBTag *tagNode,int pointCount){
 }
 
 //lab cannot be deleted until all users and anchors are offline
-static void _UWBLab_checkDelete(TUWBLocalAreaBlock *lab){
+static void UWBLab_checkDelete(TUWBLocalAreaBlock *lab,U32 labID){
+  if(lab){
+    if(!dtmr_lock(lab)) exit_with_exception("uwb lab lock fail!");
+  }
+  else{
+    lab=dtmr_findById(dtmr_labLinks,labID,TRUE);
+    if(!lab)return;
+  }
   TBinodeLink *listeningUsers=&lab->listeningUsers;
   if(listeningUsers->next==listeningUsers){//no any user is listening this lab
     int i,anchorCount=lab->anchorCount;
@@ -333,77 +330,57 @@ static void _UWBLab_checkDelete(TUWBLocalAreaBlock *lab){
         TUWBAnchor *anchor=lab->anchors[i];
         dtmr_delete(anchor);
       }
-      dtmr_delete(lab);
+      dtmr_unlock(lab,DTMR_UNLOCK_DELETE);
       printf("##########Lab#%d and anchors deleted\n",lab->id);
+      return;
     }
   }
+  dtmr_unlock(lab,0);
 }
+
 void UWBLab_logoutAnchor(TTerminal *anchor){
   puts("####logoutAnchor");
   TUWBLocalAreaBlock *lab=((TUWBAnchor *)anchor)->lab;
-  UWB_GLOBAL_LOCK();
-  if(lab) _UWBLab_checkDelete(lab);
-  UWB_GLOBAL_UNLOCK();
+  if(lab) UWBLab_checkDelete(lab,0);
 }
 
 void UWBLab_logoutUser(TTerminal *user){//将用户监听从所有lab中移出
   puts("####logoutUser");
+  dtmr_lock(user);
   TBinodeLink *node=&((TTermUser *)user)->listenLinker;
   if(node->next && node->next!=node){
-    UWB_GLOBAL_LOCK();
-    dtmr_lock(user);
+    U32 currentLabID=((TTermUser *)user)->currentLabID;
     BINODE_REMOVE(node,prev,next);
     BINODE_ISOLATE(node,prev,next);
-
-    TUWBLocalAreaBlock *lab=((TTermUser *)user)->currentLab;
-    if(lab){
-      ((TTermUser *)user)->currentLab=NULL;
-       _UWBLab_checkDelete(lab);
+    if(currentLabID){
+      UWBLab_checkDelete(NULL,currentLabID);
+      ((TTermUser *)user)->currentLabID=0;
     }
-    dtmr_unlock(user,0);
-    UWB_GLOBAL_UNLOCK();
   }
+  dtmr_unlock(user,0);
 }
 
 BOOL UWBLab_switchUser(TTerminal *user,U32 newLabID){//暂时不考虑绑定关系
-  if(newLabID){
-    BOOL ret=FALSE;
-    TUWBLocalAreaBlock *uwbLab=(TUWBLocalAreaBlock *)((TTermUser *)user)->currentLab;
-    if(uwbLab && uwbLab->id==newLabID){
-      ret=TRUE;
-    }
-    else{
-      TBinodeLink *listenNode;
-      dtmr_lock(user);
-      listenNode=&((TTermUser *)user)->listenLinker;
-      if(listenNode->next && listenNode->next!=listenNode)BINODE_REMOVE(listenNode,prev,next);
-      if(uwbLab){
-        _UWBLab_checkDelete(uwbLab);
-      }
-
-      uwbLab=(TUWBLocalAreaBlock *)dtmr_findById(dtmr_labLinks,newLabID,TRUE);
-      if(uwbLab){
-        BINODE_INSERT(listenNode,&uwbLab->listeningUsers,prev,next);
-        ((TTermUser *)user)->currentLab=uwbLab;
-        ret=TRUE;
-        dtmr_unlock(uwbLab,UWB_LAB_TIMEOUT_MS);  
-      }
-      else{
-        TUWBAnchor *anchor=_UWB_anchor_load(0,newLabID);
-        if(anchor){
-          uwbLab=anchor->lab;  
-          BINODE_INSERT(listenNode,&uwbLab->listeningUsers,prev,next);
-          ((TTermUser *)user)->currentLab=uwbLab;
-          ret=TRUE;
-        }
-      }
-      dtmr_unlock(user,0);
-    }
-    return ret;
-  }
-  else{
+  U32 currentLabID=((TTermUser *)user)->currentLabID;
+  if(currentLabID==newLabID)return TRUE;
+  else if(newLabID==0){
     UWBLab_logoutUser(user); 
     return TRUE;
+  }
+  else{
+    dtmr_lock(user);
+    TBinodeLink *listenNode=&((TTermUser *)user)->listenLinker;
+    if(listenNode->next && listenNode->next!=listenNode)BINODE_REMOVE(listenNode,prev,next);
+    UWBLab_checkDelete(NULL,currentLabID);
+    TUWBLocalAreaBlock *uwbLab=(TUWBLocalAreaBlock *)dtmr_findById(dtmr_labLinks,newLabID,TRUE);
+    if(!uwbLab)uwbLab=(TUWBLocalAreaBlock *)UWBLab_load(0,newLabID);
+    if(uwbLab){
+      BINODE_INSERT(listenNode,&uwbLab->listeningUsers,prev,next);
+      ((TTermUser *)user)->currentLabID=newLabID;
+      dtmr_unlock(uwbLab,UWB_LAB_TIMEOUT_MS);  
+    }
+    dtmr_unlock(user,0);
+    return (uwbLab!=NULL);
   }
 }
 

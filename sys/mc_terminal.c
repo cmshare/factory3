@@ -53,8 +53,8 @@ static void terminal_HbTimeout(HAND ttasks,void *taskCode,U32 *taskID,char *task
              TNetAddr *peerAddr=&terminal->loginAddr;
              db_queryf("update uwb_anchor set sessionid=0,logouttime=unix_timestamp() ,state=%d where id=%u",DEV_STATE_OFFLINE,terminal->id);
              if(hsk_isTcpSocket(peerAddr->socket)) shutdown(peerAddr->socket,2);
-             terminal->term_state=DEV_STATE_OFFLINE;//mark offline，不要直接修改sessionid为０
              terminal->loginAddr.socket=0;//mark disconnected
+             terminal->term_state=DEV_STATE_OFFLINE;//mark offline，不要直接修改sessionid为０
              UWBLab_logoutAnchor(terminal);
              //device_stateNotifyUser(terminal,0);//通知绑定手机终端摄像头已离线
            //staticMap_generate(terminal);
@@ -101,7 +101,8 @@ void terminal_init(void)
     { U32 sessionid=atoi(row[2]);//field["session"]
       TTerminal *node=(TTerminal *)dtmr_add(dtmr_termLinks,sessionid,0,0,NULL,sizeof(TTermUser),HEARTBEAT_OVERTIME_MS,&dtmrOptions);
       if(node)
-      { node->term_type=TT_USER;
+      { memset(node,0,sizeof(TTermUser));
+        node->term_type=TT_USER;
         node->sessionid=sessionid;
         node->loginAddr.socket=local_UdpSocket;
         node->id=atoi(row[0]);//field["id"]

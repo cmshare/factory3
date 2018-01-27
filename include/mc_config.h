@@ -54,7 +54,7 @@
 #define SIZE_VERIFY_CODE            6
 #define MAX_BINDED_NUM              16     //一个用户最多绑定的lab数
 #define MAXLEN_PASSWORD             12
-#define MAXLEN_USERNAME            20
+#define MAXLEN_USERNAME             20
 #define MAXLEN_NICKNAME             40
 #define MAXLEN_PACKAGENAME          80
 #define MAXLEN_URL                  80 

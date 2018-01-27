@@ -61,7 +61,7 @@ void Handle_MSG_USR_LOGIN(TMcPacket *packet){
       mysql_free_result(res);  
     }
   }
-  if(!userid)  error_code=1;//用户名或密码错误。
+  if(!userid) error_code=1;//用户名或密码错误。
   else {
     if(!sessionid)sessionid=session_new(); 
     if(!terminal || strcmp(bindedIDs,((TTermUser *)terminal)->bindedLabIDs)!=0){
@@ -78,7 +78,7 @@ void Handle_MSG_USR_LOGIN(TMcPacket *packet){
     terminal->group=userGroup;
     terminal->sex_type=sex_type;
     terminal->encrypt=packet->msg.encrypt;//消息体默认加密方式
-    strncpy(terminal->name,username,SIZE_MOBILE_PHONE+1);
+    strncpy(terminal->name,username,MAXLEN_USERNAME+1);
     db_queryf("update `uwb_user` set sessionid=%u,ip=%u,port=%u,logintime=unix_timestamp() where id=%u",sessionid,packet->peerAddr.ip,packet->peerAddr.port,userid);
   }
   packet->terminal=terminal;

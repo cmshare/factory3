@@ -111,9 +111,15 @@ void Handle_MSG_USR_GETBINDLIST(TMcPacket *packet){//有于现在尚未建立绑
 void Handle_MSG_USR_SWITCHLAB(TMcPacket *packet){
   TMSG_USR_SWITCHLAB *request=(TMSG_USR_SWITCHLAB *)packet->msg.body;
   char *bindLabList=((TTermUser *)packet->terminal)->bindedLabIDs;
-  char strLabID[8];
-  str_itoa(request->labID,strLabID);
-  U8 errCode=(str_itemSeek(bindLabList,strLabID,',') && UWBLab_switchUser(packet->terminal,request->labID))?0:-1;
+  U8 errCode=-1;
+  if(request->labID){
+    char strLabID[8];
+    str_itoa(request->labID,strLabID);
+    if(str_itemSeek(bindLabList,strLabID,',') && UWBLab_switchUser(packet->terminal,request->labID)) errCode=0;
+  }
+  else{
+    if(UWBLab_switchUser(packet->terminal,0))errCode=0;
+  }
   msg_ack_general(packet,errCode);
 }
 

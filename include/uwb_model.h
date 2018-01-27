@@ -130,7 +130,7 @@ int  UWB_process_frame(UWBRawFrame *uwbFrame);
 TPOINT *UWB_location_calculate(TUWBAnchor *curAchor,TUWBTag *tagNode,int curSyncID);
 void UWB_location_post(TUWBLocalAreaBlock *lab,TUWBTag *tagNode,int pointCount);
 BOOL UWB_frame_checkcrc(UWBRawFrame *frame);
-TUWBAnchor *UWB_anchor_load(U32 anchorID,U32 labID);
+void *UWBLab_load(U32 anchorID,U32 labID);
 //---------------------------------------------------------------------------
 BOOL load_lab_configs(int labID,TUWBLocalAreaBlock *configs,U32 *anchorIDs,int *anchorModes,int maxAnchorCount);
 void UWBLab_logoutUser(TTerminal *user);

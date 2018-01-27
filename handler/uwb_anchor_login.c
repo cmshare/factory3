@@ -34,7 +34,7 @@ void Handle_MSG_DSR_LOGIN(TMcPacket *packet){
 
   if(uwbLabID>0){
     if(!anchor){
-      anchor=UWB_anchor_load(anchorID,uwbLabID);
+      anchor=(TUWBAnchor *)UWBLab_load(anchorID,uwbLabID);
       if(anchor){
         anchor->terminal.term_type=TT_DEVICE;
         anchor->terminal.group=devGroupID;
