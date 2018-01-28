@@ -3,10 +3,10 @@
 BOOL MobilePhone_check(char *number)
 { if(number)
   { int i;
-    for(i=0;i<SIZE_MOBILE_PHONE;i++)
+    for(i=0;i<SIZE_PHONE_MOBILE;i++)
     { if(number[i]<'0' || number[i]>'9')return FALSE;
     }
-    if(i==SIZE_MOBILE_PHONE && number[i]=='\0')return TRUE;
+    if(i==SIZE_PHONE_MOBILE && number[i]=='\0')return TRUE;
   }
   return FALSE;
 }

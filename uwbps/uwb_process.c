@@ -101,7 +101,7 @@ static void UWB_updateCache(TDataProcessed *cacheData,UWBRawFrame *frame,U32 upd
  // cacheData->accX = frame->accX;
 //  cacheData->accY = frame->accY;
  // cacheData->accZ = frame->accZ;
-  cacheData->timeStamp=(U32)frame->timeStamp[0]+((U32)frame->timeStamp[1]<<8)+((U32)frame->timeStamp[2]<<16)+((U32)frame->timeStamp[3]<<24) |((U64)frame->timeStamp[4]<<32);
+  cacheData->timeStamp=(U32)frame->timeStamp[0]+((U32)frame->timeStamp[1]<<8)+((U32)frame->timeStamp[2]<<16)+((U32)frame->timeStamp[3]<<24) + ((U64)frame->timeStamp[4]<<32);
   cacheData->recvTime=updateTime;
 }
 
@@ -118,6 +118,7 @@ void *UWBLab_load(U32 anchorID,U32 labID){
    TUWBAnchor *desAnchor=NULL;
    TUWBLocalAreaBlock *uwbLab=dtmr_findById(dtmr_labLinks,labID,TRUE);
    if(uwbLab){
+     LABEL_EXIST_LAB:
      if(anchorID){
        int i;
        TUWBAnchor **pAnchors=uwbLab->anchors;
@@ -142,7 +143,7 @@ void *UWBLab_load(U32 anchorID,U32 labID){
        }
      }
      else{//不指定anchorID时，返回Lab地址(加锁)。
-       desAnchor=uwbLab->anchors[0];
+       //desAnchor=uwbLab->anchors[0];
        return uwbLab;
      }
    }
@@ -152,6 +153,7 @@ void *UWBLab_load(U32 anchorID,U32 labID){
      int mem_size=sizeof(TUWBLocalAreaBlock)+maxAnchorCount*sizeof(TUWBAnchor *);
      uwbLab=dtmr_add(dtmr_labLinks,labID,0,NULL,NULL,mem_size,UWB_LAB_TIMEOUT_MS,&dtmrOptions);   
      if(uwbLab){
+       if(dtmrOptions&DTMR_EXIST)goto LABEL_EXIST_LAB;
        U32 anchorIDs[maxAnchorCount];
        int anchorModes[maxAnchorCount];
        memset(uwbLab,0,mem_size);
@@ -210,81 +212,6 @@ void *UWBLab_load(U32 anchorID,U32 labID){
    }
    return desAnchor;
 }
-//---------------------------------------------------------------------------
-void udp_process_packet(void *packetData,int packetLen,TNetAddr *peerAddr){
-  #define FRAMES(name)  ((UWBRawFrame *)packetData)->name
-  if(packetLen!=UWB_FRAME_SIZE)return;
-  int ret_error;
-  U32 curTagID=FRAMES(tagID);
-  U32 curAnchorID=FRAMES(anchorID);
-  U32 frame_session=FRAMES(sessionID);
-  if(frame_session==0 || curTagID==0 || curAnchorID==0)ret_error=UWBERR_INVALID_FRAME_FORMAT;
-  else if(!msg_ValidChecksum(packetData,sizeof(UWBRawFrame)))ret_error=UWBERR_CHECKNUM;
-  else {
-    //从标签列表中获取标签节点并加锁(不允许其它线程并发修改此标签)。
-    //如果标签不存在则自动创建并初始化
-    TUWBTag *curTag=UWB_obtain_tag(curTagID);
-    if(!curTag) ret_error=UWBERR_INVALID_TAG;
-    else {
-      //根据anchorID以及当前相关的tagID，找到anchorNode，并更新对应关系（不存在则创建）
-      int curTime=os_msRunTime(); //系统当前时间
-      TUWBAnchor *curAnchor=(TUWBAnchor *)dtmr_findById(dtmr_termLinks,frame_session,FALSE);//不需要加锁(基站节点都是只读信息))
-      if(!curAnchor || curAnchor->terminal.id!=curAnchorID)ret_error=UWBERR_INVALID_ANCHOR;
-      else {
-        int curSyncID=FRAMES(syncID);
-        int tagID_cacheIndex=curTagID&((1<<FRAME_CACHE_BITLEN)-1);
-        int syncID_cacheIndex=curSyncID&((1<<FRAME_CACHE_BITLEN)-1);
-        TUWBLocalAreaBlock *curLab=curAnchor->lab;
-        TUWBAnchor **anchors=curLab->anchors;
-        int lab_anchorCount=curLab->anchorCount-1;//去掉一个同步基站
-        int i,cacheHitCount=0;
-        for(i=0;i<lab_anchorCount;i++){
-          TDataProcessed *cacheData=&anchors[i]->frameCache[tagID_cacheIndex][syncID_cacheIndex];//tagNode data cache pool (hash map list)
-          if(anchors[i]->terminal.id==curAnchorID){
-            cacheHitCount++;
-            //将数据帧更新到相应标符的frameCache中。
-            UWB_updateCache(cacheData,(UWBRawFrame *)packetData,curTime);
-          }
-          else{
-            if(cacheData->tagID==curTagID && cacheData->syncID==curSyncID && curTime-cacheData->recvTime<FRAME_ASSEMBLE_TIMEOUT_MS ){
-              cacheHitCount++;
-            }
-          }
-        }
-        if(cacheHitCount==lab_anchorCount){//收齐当前标签在同一组所有锚点上接收的数据
-          TPOINT *coord=UWB_location_calculate(curAnchor,curTag,curSyncID);//执行定位计算
-          if(coord){
-            int used_time_ms=curTime-curTag->bufPointStartTime;
-            int bufPointIndex=curTag->bufPointIndex++;
-            TAccAndPoint *point=&curTag->bufPointArray[bufPointIndex];
-            point->accData=FRAMES(accData);
-            point->x=(U32)(coord->x*1000);//unit transform from float type of m into integer type of mm
-            point->y=(U32)(coord->y*1000);//unit transform from float type of m into integer type of mm
-            if(used_time_ms>MAXLEN_BUFFER_LOCATE_TIMESPAN){
-              if(bufPointIndex>0){
-                label_data_ready:
-                curTag->fps=bufPointIndex*1000/used_time_ms; //计算定位频率(frame per second)
-                //用户发送定位数据包，同时记录到数据库
-                UWB_location_post(curLab,curTag,bufPointIndex);//向用户发送定位数据包，同时记录到数据库
-                curTag->bufPointIndex=0;
-              }
-              curTag->bufPointStartTime=curTime;
-            }
-            else if(bufPointIndex==MAXLEN_BUFFER_LOCATE_POINTS){
-              if(used_time_ms>0)goto label_data_ready;
-              else curTag->bufPointIndex=0;
-            }
-          }
-        }
-        ret_error=UWBERR_NONE;
-      }
-      curTag->deadline=curTime+HEARTBEAT_OVERTIME_MS;
-      UWB_release_tag(curTag);//解锁
-    }
-  }
-  //return ret_error;
-}
-
 void UWB_location_post(TUWBLocalAreaBlock *lab,TUWBTag *tagNode,int pointCount){
   //将定位数据包以及帧率发送给用户，并将定位信息保存到数据库(todo later)
   //用户列表从其当前uwb lab上挂靠的登陆用户链表中查找，有多个登陆用户，则遍历发送。
@@ -371,7 +298,11 @@ BOOL UWBLab_switchUser(TTerminal *user,BOOL ownedUserLock,U32 newLabID){
     }
     if(newLabID){
       TUWBLocalAreaBlock *uwbLab=(TUWBLocalAreaBlock *)dtmr_findById(dtmr_labLinks,newLabID,TRUE);
-      if(!uwbLab)uwbLab=(TUWBLocalAreaBlock *)UWBLab_load(0,newLabID);
+      if(!uwbLab){
+        puts("###load lab 1");
+        uwbLab=(TUWBLocalAreaBlock *)UWBLab_load(0,newLabID);
+        puts("###load lab 2");
+      }
       if(uwbLab){
         BINODE_INSERT(listenNode,&uwbLab->listeningUsers,prev,next);
         ((TTermUser *)user)->currentLabID=newLabID;
@@ -407,4 +338,83 @@ void UWB_system_init(void){
   init_tag_list();
   //初始房间列表的dummy header
 }
+//---------------------------------------------------------------------------
+void udp_process_packet(void *packetData,int packetLen,TNetAddr *peerAddr){
+  #define FRAMES(name)  ((UWBRawFrame *)packetData)->name
+  if(packetLen!=UWB_FRAME_SIZE){
+    printf("packet len=%d\n",packetLen);
+    return;
+  }
+  int ret_error;
+  U32 curTagID=FRAMES(tagID);
+  U32 curAnchorID=FRAMES(anchorID);
+  U32 frame_session=FRAMES(sessionID);
+  if(frame_session==0 || curTagID==0 || curAnchorID==0)ret_error=UWBERR_INVALID_FRAME_FORMAT;
+  else if(!msg_ValidChecksum(packetData,sizeof(UWBRawFrame)))ret_error=UWBERR_CHECKNUM;
+  else {
+    //从标签列表中获取标签节点并加锁(不允许其它线程并发修改此标签)。
+    //如果标签不存在则自动创建并初始化
+    TUWBTag *curTag=UWB_obtain_tag(curTagID);
+    if(!curTag) ret_error=UWBERR_INVALID_TAG;
+    else {
+      //根据anchorID以及当前相关的tagID，找到anchorNode，并更新对应关系（不存在则创建）
+      int curTime=os_msRunTime(); //系统当前时间
+      TUWBAnchor *curAnchor=(TUWBAnchor *)dtmr_findById(dtmr_termLinks,frame_session,FALSE);//不需要加锁(基站节点都是只读信息))
+      if(!curAnchor || curAnchor->terminal.id!=curAnchorID)ret_error=UWBERR_INVALID_ANCHOR;
+      else {
+        int curSyncID=FRAMES(syncID);
+        int tagID_cacheIndex=curTagID&((1<<FRAME_CACHE_BITLEN)-1);
+        int syncID_cacheIndex=curSyncID&((1<<FRAME_CACHE_BITLEN)-1);
+        TUWBLocalAreaBlock *curLab=curAnchor->lab;
+        TUWBAnchor **anchors=curLab->anchors;
+        int lab_anchorCount=curLab->anchorCount-1;//去掉一个同步基站
+        int i,cacheHitCount=0;
+        for(i=0;i<lab_anchorCount;i++){
+          TDataProcessed *cacheData=&anchors[i]->frameCache[tagID_cacheIndex][syncID_cacheIndex];//tagNode data cache pool (hash map list)
+          if(anchors[i]->terminal.id==curAnchorID){
+            cacheHitCount++;
+            //将数据帧更新到相应标符的frameCache中。
+            UWB_updateCache(cacheData,(UWBRawFrame *)packetData,curTime);
+          }
+          else{
+            if(cacheData->tagID==curTagID && cacheData->syncID==curSyncID && curTime-cacheData->recvTime<FRAME_ASSEMBLE_TIMEOUT_MS ){
+              cacheHitCount++;
+            }
+          }
+        }
+        if(cacheHitCount==lab_anchorCount){//收齐当前标签在同一组所有锚点上接收的数据
+          TPOINT *coord=UWB_location_calculate(curAnchor,curTag,curSyncID);//执行定位计算
+          if(coord){
+            int used_time_ms=curTime-curTag->bufPointStartTime;
+            int bufPointIndex=curTag->bufPointIndex++;
+            TAccAndPoint *point=&curTag->bufPointArray[bufPointIndex];
+            point->accData=FRAMES(accData);
+            point->x=(U32)(coord->x*1000);//unit transform from float type of m into integer type of mm
+            point->y=(U32)(coord->y*1000);//unit transform from float type of m into integer type of mm
+            if(used_time_ms>MAXLEN_BUFFER_LOCATE_TIMESPAN){
+              if(bufPointIndex>0){
+                label_data_ready:
+                curTag->fps=bufPointIndex*1000/used_time_ms; //计算定位频率(frame per second)
+                //用户发送定位数据包，同时记录到数据库
+                UWB_location_post(curLab,curTag,bufPointIndex);//向用户发送定位数据包，同时记录到数据库
+                curTag->bufPointIndex=0;
+              }
+              curTag->bufPointStartTime=curTime;
+            }
+            else if(bufPointIndex==MAXLEN_BUFFER_LOCATE_POINTS){
+              if(used_time_ms>0)goto label_data_ready;
+              else curTag->bufPointIndex=0;
+            }
+          }
+        }
+        ret_error=UWBERR_NONE;
+      }
+      curTag->deadline=curTime+HEARTBEAT_OVERTIME_MS;
+      UWB_release_tag(curTag);//解锁
+    }
+  }
+  if(ret_error)printf("###uwb_data: error=%d\n",ret_error);
+  //return ret_error;
+}
+
 

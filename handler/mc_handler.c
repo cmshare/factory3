@@ -112,6 +112,6 @@ void Handle_MSG_USR_CONFIGS(TMcPacket *packet)
 
 void Handle_MSG_USR_TEST(TMcPacket *packet){
   dtmr_test(dtmr_termLinks);
-  dtmr_test(dtmr_labLinks);
+//  dtmr_test(dtmr_labLinks);
   msg_ack_general(packet,0);
 }

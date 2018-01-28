@@ -244,16 +244,16 @@ typedef struct{
 }TMSG_SDA_LOGIN,TMSG_SUA_LOGIN;
 
 typedef struct
-{ char phone[SIZE_MOBILE_PHONE+1];
+{ char phone[SIZE_PHONE_MOBILE+1];
   U32  groupid;
 }TMSG_USR_VERIFYCODE;
 
 typedef struct
-{ char phone[SIZE_MOBILE_PHONE+1];
+{ char phone[SIZE_PHONE_MOBILE+1];
 }TMSG_VSR_LIVE,TMSG_USR_GETUSERHEAD;
 
 typedef struct
-{ char phone[SIZE_MOBILE_PHONE+1];
+{ char username[MAXLEN_USERNAME+1];
   char psw[MAXLEN_PASSWORD+1];
   char nick[MAXLEN_NICKNAME+1];   //UTF-8编码
   char verifycode[SIZE_VERIFY_CODE+1];
@@ -304,7 +304,7 @@ typedef struct
 
 typedef struct
 { U8   check_mode;//0：使用验证码（旧密码字段无效）1：使用旧密码验证（验证码字段无效）
-  char mobilephone[SIZE_MOBILE_PHONE+1];
+  char username[MAXLEN_USERNAME+1];
   char verifycode[SIZE_VERIFY_CODE+1];
   char old_psw[MAXLEN_PASSWORD+1];
   char new_psw[MAXLEN_PASSWORD+1];
@@ -328,7 +328,7 @@ typedef struct
 typedef struct
 { U32 ack_synid;
   U8 binded;
-  char phone[SIZE_MOBILE_PHONE+1];
+  char username[MAXLEN_USERNAME+1];
 }TMSG_SVA_GETBINDUSER;
 
 typedef struct
@@ -371,7 +371,7 @@ typedef struct
 
 typedef struct
 { U8 type; //1:投诉;2:建议
-  char mobile[SIZE_MOBILE_PHONE+1];//投诉人手机号
+  char username[MAXLEN_USERNAME+1];//投诉人手机号
   char advice[512];//utf-8编码
 }TMSG_USR_POST_ADVICE;
 

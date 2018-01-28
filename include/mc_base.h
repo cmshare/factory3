@@ -46,5 +46,8 @@ typedef struct t_binode_link{struct t_binode_link *prev,*next;}TBinodeLink;
 #define os_closeSocket(s)                               close(s)
 #define os_sockopt_t                                    void
 #define os_socklen_t                                    socklen_t
+#define os_sSleep                                       sleep                 //单位秒
+#define os_msSleep(ms)                                  usleep((ms)*1000)
+#define os_usSleep                                      usleep                //单位微妙秒
 //---------------------------------------------------------------------------
 #endif

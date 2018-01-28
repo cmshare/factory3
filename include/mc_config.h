@@ -50,7 +50,7 @@
 #define SPAN_MSG_PUSH_FILTER_MS     10000
 #define SIZE_SN_DEVICE              20
 #define SIZE_MD5                    32
-#define SIZE_MOBILE_PHONE           11
+#define SIZE_PHONE_MOBILE           11
 #define SIZE_VERIFY_CODE            6
 #define MAX_BINDED_NUM              16     //一个用户最多绑定的lab数
 #define MAXLEN_PASSWORD             12

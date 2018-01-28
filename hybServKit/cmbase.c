@@ -1407,12 +1407,19 @@ void dtmr_unlock(void *dnode,U32 msUpdateLifeTime){
   }
 }
 
+#if 0
 BOOL dtmr_update(void *dnode,U32 msUpdateLifeTime,U32 options){
   if(dnode)
   { TDateTimerNode *tskNode=T_PARENT_NODE(TDateTimerNode,ExtraData,dnode);
     TDateTimer *dtimer=tskNode->dtimer;
     if(dtimer && dtimer->magicNumber==DTMR_MAGIC_NUMBER){
-      if((options&DTMR_LOCK) && !os_obtainSemphore(tskNode->semlock))return FALSE;
+      if((options&DTMR_LOCK) && (tskNode->mode&DTMR_LOCK)) printf("node is already locked");
+      puts("#######step1");
+      if((options&DTMR_LOCK) && !os_obtainSemphore(tskNode->semlock)){
+         puts("#######step1.1");
+         return FALSE;
+      }
+      puts("#######step2");
       if(os_obtainSemphore(dtimer->_task_mutex)){
         if((tskNode->nodeID[0] || tskNode->nodeID[1] || (DTMR_NODE_NAME(tskNode))[0])){
           if(msUpdateLifeTime)tskNode->msLifeTime=msUpdateLifeTime;
@@ -1438,7 +1445,41 @@ BOOL dtmr_update(void *dnode,U32 msUpdateLifeTime,U32 options){
   }
   return FALSE;
 }
-
+#else
+BOOL dtmr_update(void *dnode,U32 msUpdateLifeTime,U32 options){
+  if(dnode)
+  { TDateTimerNode *tskNode=T_PARENT_NODE(TDateTimerNode,ExtraData,dnode);
+    TDateTimer *dtimer=tskNode->dtimer;
+    if(dtimer && dtimer->magicNumber==DTMR_MAGIC_NUMBER){
+      if((options&DTMR_LOCK) && !os_obtainSemphore(tskNode->semlock)){
+        exit_with_exception("###obtain tskNode->semlock error!");//Should never reach here
+      }
+      if(os_obtainSemphore(dtimer->_task_mutex)){
+        if((tskNode->nodeID[0] || tskNode->nodeID[1] || (DTMR_NODE_NAME(tskNode))[0])){
+          if(msUpdateLifeTime)tskNode->msLifeTime=msUpdateLifeTime;
+          if((options&DTMR_ENABLE)){
+            if(msUpdateLifeTime ||!(tskNode->mode&DTMR_ENABLE)) _DTMR_UpdateTimeout((TDateTimer *)dtimer,tskNode,tskNode->msLifeTime);
+          }
+          else{
+            if(tskNode->mode&DTMR_ENABLE){
+              BINODE_REMOVE(tskNode,next,prev);
+              BINODE_ISOLATE(tskNode,next,prev);
+            }
+          }
+          tskNode->mode=options;
+        }
+        else{//节点已经删除
+          if((options&DTMR_LOCK)) os_releaseSemphore(tskNode->semlock);
+          dnode=NULL; //mark fail for return
+        }
+        os_releaseSemphore(dtimer->_task_mutex);
+        return (dnode)?TRUE:FALSE;
+      }
+    }
+  }
+  return FALSE;
+}
+#endif
 int dtmr_getSize(void *dnode){
   if(dnode){
     TDateTimerNode *tsknode=T_PARENT_NODE(TDateTimerNode,ExtraData,dnode);
