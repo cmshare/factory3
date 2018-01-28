@@ -4,7 +4,6 @@
 void mc_dispatchmsg(TMcPacket *packet){
 //to map user message to handler 
   BEGIN_MESSAGE_MAP_ONLINE
-     MESSAGE_HANDLER(MSG_USR_TEST)
      MESSAGE_HANDLER(MSG_ACK_GENERAL)
      MESSAGE_HANDLER(MSG_TSR_HEARTBEAT)
      MESSAGE_HANDLER(MSG_USR_GETUSERHEAD)
@@ -22,6 +21,7 @@ void mc_dispatchmsg(TMcPacket *packet){
      MESSAGE_HANDLER(MSG_DSR_LOGIN) 
      MESSAGE_HANDLER(MSG_USR_LOGIN)
      MESSAGE_HANDLER(MSG_USR_CONFIGS)
+     MESSAGE_HANDLER(MSG_USR_TEST)
   END_MESSAGE_MAP
 }
 //---------------------------------------------------------------------------

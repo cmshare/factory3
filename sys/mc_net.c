@@ -171,8 +171,7 @@ static void *uwb_location_proc(void *param){
 }
 //---------------------------------------------------------------------------
 void Handle_MSG_TSR_HEARTBEAT(TMcPacket *packet){
- // printf("heatbeat\n");
-  dtmr_update(packet->terminal,HEARTBEAT_OVERTIME_MS,DTMR_TIMEOUT_DELETE|DTMR_ENABLE);
+  dtmr_reload(packet->terminal);
   msg_ack_general(packet,0);
 }
 //---------------------------------------------------------------------------

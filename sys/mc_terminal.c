@@ -94,7 +94,7 @@ U32 session_new(void){
 //---------------------------------------------------------------------------
 void terminal_init(void)
 { MYSQL_RES *res;
-  U32 dtmrOptions=DTMR_TIMEOUT_DELETE|DTMR_OVERRIDE;
+  U32 dtmrOptions=DTMR_ENABLE|DTMR_TIMEOUT_DELETE|DTMR_OVERRIDE;
   U32 local_UdpSocket=hsk_getUdpSocket();
   dtmr_termLinks=dtmr_create(1024,HEARTBEAT_OVERTIME_MS,terminal_HbTimeout,"dtmr_termLinks");
   dtmr_commLinks=dtmr_create(64,60000,NULL,"dtmr_commLinks");

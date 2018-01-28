@@ -46,6 +46,7 @@ void *dtmr_findByID(HAND dtimer,U32 nodeIDL,U32 nodeIDH,BOOL addLock);
 void *dtmr_findById(HAND dtimer,U32 nodeIDL,BOOL addLock);
 void *dtmr_findByName(HAND dtimer,char *nodeName,BOOL addLock);
 void *dtmr_findByData(HAND dtimer,U32 nodeIDL,U32 nodeIDH,void *nodeData,U32 dataSize,int dataOffset,BOOL addLock);
+void  dtmr_reload(void *dnode);
 BOOL  dtmr_update(void *dnode,U32 msUpdateLifeTime,U32 options);
 BOOL  dtmr_lock(void *dnode);
 void  dtmr_unlock(void *dnode,U32 msUpdateLifeTime);

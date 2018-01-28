@@ -7,7 +7,7 @@
 *.o
 *.a
 *.bak
-cscope.*
+cscope*
 uwbd*
 core*
 

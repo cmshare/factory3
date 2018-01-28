@@ -123,10 +123,10 @@ void *UWBLab_load(U32 anchorID,U32 labID){
        int i;
        TUWBAnchor **pAnchors=uwbLab->anchors;
        for(i=0;i<uwbLab->anchorCount;i++){
-         if(pAnchors[i]->terminal.id==anchorID){//这条语句有时会异常？？
+         if(pAnchors[i]->terminal.id==anchorID){
            U32 dtmrOptions=DTMR_LOCK|DTMR_TIMEOUT_STOP|DTMR_ENABLE;
            desAnchor=pAnchors[i];
-           if(dtmr_update(desAnchor,HEARTBEAT_OVERTIME_MS,dtmrOptions)){
+           if(dtmr_update(desAnchor,HEARTBEAT_OVERTIME_MS,dtmrOptions)){//失败
               dtmr_unlock(uwbLab,UWB_LAB_TIMEOUT_MS);  
               return desAnchor;
            }
@@ -181,7 +181,7 @@ void *UWBLab_load(U32 anchorID,U32 labID){
              if(anchorNode){
                anchorNode->index=index;
                anchorNode->lab=uwbLab;
-               anchorNode->mode=anchorModes[index];
+               anchorNode->mode=anchorModes[index];//普通定位基站还是同步基站(同步基站必须在最后一个)
                anchorNode->terminal.term_state=DEV_STATE_OFFLINE;
                anchorNode->terminal.id=anchorIDs[index];
                anchorNode->terminal.sessionid=new_sessionid;
@@ -199,8 +199,7 @@ void *UWBLab_load(U32 anchorID,U32 labID){
          }
        }
        else{//load config fail!
-         dtmr_unlock(uwbLab,0);
-         dtmr_delete(uwbLab);
+         dtmr_unlock(uwbLab,DTMR_UNLOCK_DELETE);
          return NULL;
        }
        dtmr_unlock(uwbLab,0);

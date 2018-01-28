@@ -12,14 +12,22 @@
 #endif
 #define MEOW_SERVICE_VERSION        "2.3"
 //---------------------------------------------------------------------------
-#define ENABLE_SMS_MODULE           0
-#define WEB_SNAPSHOT_ROOT          "/uploadfiles/share/"
-//---------------------------------------------------------------------------
+#if 1
+#define SERVICE_PORT_TCP            8081  //TCP
+#define SERVICE_PORT_UDP            8894  //UDP 
+#define SERVICE_UWB_PORT1           8895  //UDP
+#define SERVICE_UWB_PORT2           8896  //UDP
+#define SERVICE_UWB_PORT3           8897  //UDP
+#else
 #define SERVICE_PORT_TCP            8080  //TCP
 #define SERVICE_PORT_UDP            8890  //UDP 
 #define SERVICE_UWB_PORT1           8891  //UDP
 #define SERVICE_UWB_PORT2           8892  //UDP
 #define SERVICE_UWB_PORT3           8893  //UDP
+#endif
+//---------------------------------------------------------------------------
+#define ENABLE_SMS_MODULE           0
+#define WEB_SNAPSHOT_ROOT           "/uploadfiles/share/"
 //---------------------------------------------------------------------------
 #define DATABASE_HOST               "localhost"
 #define DATABASE_NAME               "uwb_location"

@@ -1,4 +1,4 @@
-TARGET  = uwbd 
+TARGET  = uwbs 
 CC      = gcc
 
 INCLUDES =  include
