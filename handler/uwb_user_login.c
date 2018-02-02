@@ -1,6 +1,12 @@
 #include "mc_routine.h"
 #include "uwb_model.h"
 //-------------------------------------------------------------------------------------
+void terminal_kickoff(TNetAddr *peer,U8 errcode){
+  TMcMsg *msg=msg_alloc(MSG_STR_KICKOFF,sizeof(U8));
+  *((U8 *)msg->body)=errcode;
+  msg_sendto(msg,peer);
+}
+//-------------------------------------------------------------------------------------
 void Handle_MSG_USR_LOGIN(TMcPacket *packet){
   TTerminal *terminal=NULL;
   TMSG_USR_LOGIN *content=(TMSG_USR_LOGIN *)packet->msg.body;
@@ -41,8 +47,9 @@ void Handle_MSG_USR_LOGIN(TMcPacket *packet){
                 //同一用户名多处登录的状况
                 //将原先登录的用户踢下线
                 if(loginAddr->ip!=peerAddr->ip || (hsk_isTcpAddr(peerAddr) && hsk_isTcpAddr(loginAddr) && loginAddr->socket!=peerAddr->socket)|| (!hsk_isTcpAddr(peerAddr) && !hsk_isTcpAddr(loginAddr) && loginAddr->port!=peerAddr->port)){
-                  TMcMsg *reqmsg=msg_alloc(MSG_SUR_KICKOFF,0);
-                  msg_request(reqmsg,terminal,NULL,0);
+                  //TMcMsg *reqmsg=msg_alloc(MSG_SUR_KICKOFF,0);
+                 // msg_request(reqmsg,terminal,NULL,0);
+                  terminal_kickoff(loginAddr,-4);//已经在其它地方登录
                   //安全删除原先登录的用户节点
                   UWBLab_switchUser(terminal,TRUE,0);
                   dtmr_unlock(terminal,DTMR_UNLOCK_DELETE);//删除后的节点无法被查找，但会保留足够长一段时间

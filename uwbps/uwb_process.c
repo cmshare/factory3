@@ -276,10 +276,12 @@ BOOL UWBLab_switchUser(TTerminal *user,BOOL ownedUserLock,U32 newLabID){
 #if 1 //errorCheck
     if(currentLabID){
       if(!listenNode->next || listenNode->next==listenNode){
+        //Should never reach here
         exit_with_exception("currentLabID<>0 but listenNode is empty!");
       }
     }
     else if(listenNode->next && listenNode->next!=listenNode){
+       //Should never reach here
        exit_with_exception("currentLabID==0 but listenNode is not empty!");
     } 
 #endif
@@ -338,18 +340,13 @@ void UWB_system_init(void){
   //初始房间列表的dummy header
 }
 //---------------------------------------------------------------------------
-void udp_process_packet(void *packetData,int packetLen,TNetAddr *peerAddr){
-  #define FRAMES(name)  ((UWBRawFrame *)packetData)->name
-  if(packetLen!=UWB_FRAME_SIZE){
-    printf("packet len=%d\n",packetLen);
-    return;
-  }
+static int udp_process_frame(UWBRawFrame *uwbFrame){
   int ret_error;
-  U32 curTagID=FRAMES(tagID);
-  U32 curAnchorID=FRAMES(anchorID);
-  U32 frame_session=FRAMES(sessionID);
+  U32 curTagID=uwbFrame->tagID;
+  U32 curAnchorID=uwbFrame->anchorID;
+  U32 frame_session=uwbFrame->sessionID;
   if(frame_session==0 || curTagID==0 || curAnchorID==0)ret_error=UWBERR_INVALID_FRAME_FORMAT;
-  else if(!msg_ValidChecksum(packetData,sizeof(UWBRawFrame)))ret_error=UWBERR_CHECKNUM;
+  else if(!msg_ValidChecksum(uwbFrame,sizeof(UWBRawFrame)))ret_error=UWBERR_CHECKNUM;
   else {
     //从标签列表中获取标签节点并加锁(不允许其它线程并发修改此标签)。
     //如果标签不存在则自动创建并初始化
@@ -361,7 +358,7 @@ void udp_process_packet(void *packetData,int packetLen,TNetAddr *peerAddr){
       TUWBAnchor *curAnchor=(TUWBAnchor *)dtmr_findById(dtmr_termLinks,frame_session,FALSE);//不需要加锁(基站节点都是只读信息))
       if(!curAnchor || curAnchor->terminal.id!=curAnchorID)ret_error=UWBERR_INVALID_ANCHOR;
       else {
-        int curSyncID=FRAMES(syncID);
+        int curSyncID=uwbFrame->syncID;
         int tagID_cacheIndex=curTagID&((1<<FRAME_CACHE_BITLEN)-1);
         int syncID_cacheIndex=curSyncID&((1<<FRAME_CACHE_BITLEN)-1);
         TUWBLocalAreaBlock *curLab=curAnchor->lab;
@@ -373,7 +370,7 @@ void udp_process_packet(void *packetData,int packetLen,TNetAddr *peerAddr){
           if(anchors[i]->terminal.id==curAnchorID){
             cacheHitCount++;
             //将数据帧更新到相应标符的frameCache中。
-            UWB_updateCache(cacheData,(UWBRawFrame *)packetData,curTime);
+            UWB_updateCache(cacheData,uwbFrame,curTime);
           }
           else{
             if(cacheData->tagID==curTagID && cacheData->syncID==curSyncID && curTime-cacheData->recvTime<FRAME_ASSEMBLE_TIMEOUT_MS ){
@@ -387,7 +384,7 @@ void udp_process_packet(void *packetData,int packetLen,TNetAddr *peerAddr){
             int used_time_ms=curTime-curTag->bufPointStartTime;
             int bufPointIndex=curTag->bufPointIndex++;
             TAccAndPoint *point=&curTag->bufPointArray[bufPointIndex];
-            point->accData=FRAMES(accData);
+            point->accData=uwbFrame->accData;
             point->x=(U32)(coord->x*1000);//unit transform from float type of m into integer type of mm
             point->y=(U32)(coord->y*1000);//unit transform from float type of m into integer type of mm
             if(used_time_ms>MAXLEN_BUFFER_LOCATE_TIMESPAN){
@@ -412,8 +409,16 @@ void udp_process_packet(void *packetData,int packetLen,TNetAddr *peerAddr){
       UWB_release_tag(curTag);//解锁
     }
   }
-  if(ret_error)printf("###uwb_data: error=%d\n",ret_error);
-  //return ret_error;
+  return ret_error;
 }
 
+void udp_process_packet(void *packetData,int packetLen,TNetAddr *peerAddr){
+  if(packetLen==UWB_FRAME_SIZE){
+     int err=udp_process_frame((UWBRawFrame *)packetData);
+     if(err!=0){
+       terminal_kickoff(peerAddr,err);
+       //printf("###uwb_data: error=%d\n",err);
+     }
+  }
+}
 

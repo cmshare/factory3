@@ -8,6 +8,7 @@
 //---------------------------------------------------------------------------
 #define s_maxTcpSliceSize 1500
 static int hskUdpSocket=-1,hskTcpSocket=-1,s_maxUdpDatagramSize;
+static int *hskAppendUdpSocketArry=NULL,hskAppendUdpSocketCount=0;
 static HAND socket_queue_mutex,socket_read_sem;
 static HAND socket_inqueue=NULL;
 static HAND discreteTransferLinks=NULL;
@@ -522,20 +523,66 @@ BOOL hsk_isTcpAddr(TNetAddr *addr){
   return (addr->socket && addr->socket!=hskUdpSocket);
 }
 
+#if 1
 void hsk_sendData(void *data,int datalen,TNetAddr *peerAddr){
   if(peerAddr){
     int peerSocket=peerAddr->socket;
     if(peerSocket==hskUdpSocket){
-      struct sockaddr_in m_sockaddr;
-      m_sockaddr.sin_family = AF_INET;
-      m_sockaddr.sin_addr.s_addr = peerAddr->ip;
-      m_sockaddr.sin_port = htons(peerAddr->port);
-      bzero(&m_sockaddr.sin_zero,8);
-      sendto(peerSocket,(char *)data,datalen,0,(const struct sockaddr *)&m_sockaddr, sizeof(m_sockaddr));
-      //printf("[UDP SEND %dBytes to %s:%d @%u]\r\n",datalen,inet_ntoa(*((struct in_addr *)&peerAddr->ip)),peerAddr->port,time(NULL));
+      label_udp_send:{
+        struct sockaddr_in m_sockaddr;
+        m_sockaddr.sin_family = AF_INET;
+        m_sockaddr.sin_addr.s_addr = peerAddr->ip;
+        m_sockaddr.sin_port = htons(peerAddr->port);
+        bzero(&m_sockaddr.sin_zero,8);
+        sendto(peerSocket,(char *)data,datalen,0,(const struct sockaddr *)&m_sockaddr, sizeof(m_sockaddr));
+        //printf("[UDP SEND %dBytes to %s:%d @%u]\r\n",datalen,inet_ntoa(*((struct in_addr *)&peerAddr->ip)),peerAddr->port,time(NULL));
+      }
     }
-    else{ // tcp connection
-      if(peerSocket>0)send(peerSocket, (char *)data, datalen, 0);
+    else if(peerSocket>0){  
+      int i,*udpSocket=hskAppendUdpSocketArry;
+      //通过查询的方式判断socket类型，总体效率比通过getsockopt方式判断高效一点
+      for(i=hskAppendUdpSocketCount-1;i>=0;i--){
+        if(udpSocket[i]==peerSocket) goto label_udp_send;
+      }
+      send(peerSocket, (char *)data, datalen, 0);// tcp connection
+      //printf("[TCP SEND %dBytes to %s:%d @%u]\r\n",datalen,inet_ntoa(*((struct in_addr *)&peerAddr->ip)),peerAddr->port,time(NULL));
+    }   
+    else{
+      peerSocket=hskUdpSocket;
+      goto label_udp_send;
+    }
+  }
+  else {
+    sendloop(data,datalen);
+  }
+}
+#else
+void hsk_sendData(void *data,int datalen,TNetAddr *peerAddr){
+  if(peerAddr){
+    int peerSocket=peerAddr->socket;
+    if(peerSocket==hskUdpSocket){
+      label_udp_send:{
+        struct sockaddr_in m_sockaddr;
+        m_sockaddr.sin_family = AF_INET;
+        m_sockaddr.sin_addr.s_addr = peerAddr->ip;
+        m_sockaddr.sin_port = htons(peerAddr->port);
+        bzero(&m_sockaddr.sin_zero,8);
+        sendto(peerSocket,(char *)data,datalen,0,(const struct sockaddr *)&m_sockaddr, sizeof(m_sockaddr));
+        //printf("[UDP SEND %dBytes to %s:%d @%u]\r\n",datalen,inet_ntoa(*((struct in_addr *)&peerAddr->ip)),peerAddr->port,time(NULL));
+      }
+    }
+    else if(peerSocket>0){ // tcp connection 
+      int sockType = 0;
+      int optlen = 4;
+      //检测socket类型,这种方式比较通用，但是系统调用的开销相对大一点
+      if(getsockopt(peerSocket,SOL_SOCKET,SO_TYPE,&sockType,(socklen_t *)&optlen)==0){
+        if(sockType==1){//TCP
+          send(peerSocket, (char *)data, datalen, 0);
+        }
+        else if(sockType==2){//UDP
+          goto label_udp_send;
+        }
+      }
       //printf("[TCP SEND %dBytes to %s:%d @%u]\r\n",datalen,inet_ntoa(*((struct in_addr *)&peerAddr->ip)),peerAddr->port,time(NULL));
     }   
   }
@@ -543,6 +590,7 @@ void hsk_sendData(void *data,int datalen,TNetAddr *peerAddr){
     sendloop(data,datalen);
   }
 }
+#endif
 
 
 void hsk_releaseTcpPacket(THskPacket *packet,BOOL isHeapMsg,BOOL isShortConnect){
@@ -578,7 +626,7 @@ int hsk_init(int localTcpPort,int localUdpPort,int maxUdpDatagramSize,int inQueu
 
 int hsk_append_udp(int udpPortArray[],int udpCount,int inQueueSize){
   int i,ret=0;
-  if(udpCount>0){
+  if(udpCount>0 && hskAppendUdpSocketCount==0){
     int *udpSocket=(int *)malloc(udpCount*sizeof(int));
     if(!udp_recv_queue){
       udp_recv_queue=qb_create(inQueueSize);
@@ -592,6 +640,8 @@ int hsk_append_udp(int udpPortArray[],int udpCount,int inQueueSize){
         if(os_createThread(&udp_recv_thread,_udp_socket_recv_proc, udpSocket+i))ret++;
       }
     }
+    hskAppendUdpSocketArry=udpSocket;
+    hskAppendUdpSocketCount=udpCount;
   }
   return ret; 
 }

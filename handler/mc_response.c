@@ -12,7 +12,6 @@ void Response_MSG_TIMEOUT(TMcPacket *request,void *extraData){
   }
 }
 
-
 void Response_MSG_ACK_GENERAL(TMcPacket *response,void *extraData){
   switch(((TMSG_ACK_GENERAL *)response->msg.body)->ack_msgid){
     GENERAL_RESPONSE(MSG_SDR_CALIBRATION_RANGING)
@@ -32,13 +31,6 @@ void Response_MSG_DSA_WAKEUP(TMcPacket *response,void *extraData)
 }
 
 void Response_MSG_USA_NOTIFY_MSGBOX(TMcPacket *response,void *extraData){
-}
-
-void Response_MSG_USA_KICKOFF(TMcPacket *response,void *extraData){
-  /* TMSG_ACK_GENERAL *ackBody=(TMSG_ACK_GENERAL *)response->msg.body;
-  if(ackBody->error==0)
-  { Log_AppendText("user kicked off!");
-  }*/
 }
 
 void Response_MSG_USA_NOTIFY_STATE(TMcPacket *response, void *extraData){

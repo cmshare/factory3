@@ -8,16 +8,16 @@
 #else
   #define WEB_SERVER_HOST          "dev.tellfun.com"
   #define ENABLE_FLOW_MONITOR       0
-  #define DEBUG_MODE
+  //#define DEBUG_MODE
 #endif
 #define MEOW_SERVICE_VERSION        "2.3"
 //---------------------------------------------------------------------------
-#if 1
+#if 0
 #define SERVICE_PORT_TCP            8081  //TCP
-#define SERVICE_PORT_UDP            8894  //UDP 
-#define SERVICE_UWB_PORT1           8895  //UDP
-#define SERVICE_UWB_PORT2           8896  //UDP
-#define SERVICE_UWB_PORT3           8897  //UDP
+#define SERVICE_PORT_UDP            8895  //UDP 
+#define SERVICE_UWB_PORT1           8896  //UDP
+#define SERVICE_UWB_PORT2           8897  //UDP
+#define SERVICE_UWB_PORT3           8898  //UDP
 #else
 #define SERVICE_PORT_TCP            8080  //TCP
 #define SERVICE_PORT_UDP            8890  //UDP 

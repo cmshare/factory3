@@ -217,6 +217,7 @@ void msg_ack_general(TMcPacket *srcPacket,U8 errCode){
     ackBody->error=errCode;
     msg_send(msg,srcPacket,NULL);
 }
+
 //---------------------------------------------------------------------------
 void msg_init(void)
 { sem_init(&msg_alloc_lock, 0, 1);

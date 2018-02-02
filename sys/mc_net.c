@@ -120,14 +120,14 @@ static void *mc_dispatch_proc(void *param){
     #endif
     if(sliceLen>sizeof(TMcMsg)){
       msgsize=MC_MSG_SIZE(msg);
-      if(sliceLen>=msgsize && packet_checksum_and_decrypt(headPacket)){
+      if(sliceLen>=msgsize && (U32)msgsize<MAXLEN_MSG_PACKET && packet_checksum_and_decrypt(headPacket)){
         mc_dispatchmsg(handledPacket=headPacket);
         sliceLen-=msgsize;
         while(sliceLen>0){//处理粘包
            msg=(TMcMsg *)((char *)msg+msgsize);
            if(sliceLen>sizeof(TMcMsg)){
              msgsize=MC_MSG_SIZE(msg);
-             if(sliceLen>=msgsize && msg_checksum_and_decrypt(msg)){
+             if(sliceLen>=msgsize && (U32)msgsize<MAXLEN_MSG_PACKET && msg_checksum_and_decrypt(msg)){
                TMcPacket *packet=T_PARENT_NODE(TMcPacket,msg,msg);               
                packet->terminal=headPacket->terminal;
                packet->peerAddr=headPacket->peerAddr;  
@@ -142,7 +142,7 @@ static void *mc_dispatch_proc(void *param){
     }
     else msgsize=0;
  	 
-    if(sliceLen>0 && headPacket->peerAddr.socket!=svrUdpSocket && msgsize<MAXLEN_MSG_PACKET){ //针对TCP报文数据进行组装 	
+    if(sliceLen>0 && headPacket->peerAddr.socket!=svrUdpSocket && (U32)msgsize<MAXLEN_MSG_PACKET){ //针对TCP报文数据进行组装 	
       TMcPacket *packet=(TMcPacket *)hsk_assemble(&headPacket->peerAddr,msg,sliceLen,msgsize);
       if(packet){
         if(packet_checksum_and_decrypt(packet)){

@@ -22,9 +22,7 @@
 #define MSG_DSR_LOGIN                0x00000002    //终端设备登录请求
 #define MSG_SDA_LOGIN                (MSG_DSR_LOGIN|MSG_ACK_GENERAL)  //终端登录响应
 
-#define MSG_SDR_KICKOFF              0x00000004  //服务器将基站踢下线或者通知sessionid失效
-#define MSG_DSA_KICKOFF              (MSG_SDR_KICKOFF|MSG_ACK_GENERAL)
-
+#define MSG_STR_KICKOFF              0x00000004  //服务器将基站踢下线或者通知sessionid失效
 
 #define MSG_SDR_CALIBRATION_RANGING  0x000000C   //请求标定测距
 #define MSG_DSA_CALIBRATION_RANGING  (MSG_SDR_CALIBRATION_RANGING|MSG_ACK_GENERAL)
@@ -40,9 +38,6 @@
 #define MSG_SUA_LOGIN                (MSG_USR_LOGIN|MSG_ACK_GENERAL)  //用户登录响应
 
 #define MSG_USR_LOGOUT               0x0000F003   //手机注销请求，返回服务器通用应答。
-
-#define MSG_SUR_KICKOFF              0x0000F004  //服务器将用户踢下线
-#define MSG_USA_KICKOFF              (MSG_SUR_KICKOFF|MSG_ACK_GENERAL)
 
 #define MSG_USR_SWITCHLAB            0x0000F007   //切换Lab监听
 

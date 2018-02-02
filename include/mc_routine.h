@@ -21,6 +21,7 @@ void spy_notify(U8 value, TNetAddr *spyAddr);
 int vcode_apply(char *code,char *phone);
 int sms_send(char *content,char *phones,int usrgroup);
 TMcMsg *msg_alloc(U32 msgID,U32 bodyLen);
+void terminal_kickoff(TNetAddr *peer,U8 errCode);
 BOOL msg_decrypt(TMcMsg *msg);
 void msg_UpdateChecksum(void *data,int datalen);
 BOOL msg_ValidChecksum(void *data,int datalen);
