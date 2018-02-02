@@ -353,10 +353,10 @@ static int udp_process_frame(UWBRawFrame *uwbFrame){
     TUWBTag *curTag=UWB_obtain_tag(curTagID);
     if(!curTag) ret_error=UWBERR_INVALID_TAG;
     else {
-      //根据anchorID以及当前相关的tagID，找到anchorNode，并更新对应关系（不存在则创建）
       int curTime=os_msRunTime(); //系统当前时间
+      //根据anchorID以及当前相关的tagID，找到anchorNode，并更新对应关系（不存在则创建）
       TUWBAnchor *curAnchor=(TUWBAnchor *)dtmr_findById(dtmr_termLinks,frame_session,FALSE);//不需要加锁(基站节点都是只读信息))
-      if(!curAnchor || curAnchor->terminal.id!=curAnchorID)ret_error=UWBERR_INVALID_ANCHOR;
+      if(!curAnchor || curAnchor->terminal.term_state==DEV_STATE_OFFLINE || curAnchor->terminal.id!=curAnchorID)ret_error=UWBERR_INVALID_ANCHOR;
       else {
         int curSyncID=uwbFrame->syncID;
         int tagID_cacheIndex=curTagID&((1<<FRAME_CACHE_BITLEN)-1);
