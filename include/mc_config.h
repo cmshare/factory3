@@ -8,7 +8,7 @@
 #else
   #define WEB_SERVER_HOST          "dev.tellfun.com"
   #define ENABLE_FLOW_MONITOR       0
-  //#define DEBUG_MODE
+  #define DEBUG_MODE
 #endif
 #define MEOW_SERVICE_VERSION        "2.3"
 //---------------------------------------------------------------------------
