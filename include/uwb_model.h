@@ -99,7 +99,7 @@ struct _TUWBLocalAreaBlock{
   int algorithm;//0:TDOA
   int anchorCount;//default=4
   int compensate21,compensate31,compensate41;
-  U32 ab_mm,bc_mm,ac_mm,da_mm,db_mm,dc_mm;
+  int ab_mm,bc_mm,ac_mm,da_mm,db_mm,dc_mm;
   TBinodeLink listeningUsers;
   TUWBAnchor *anchors[0]; //anchor list of A,B,C,etc.
   //根据配置信息分配实际的基站节点数内存

@@ -281,7 +281,7 @@ void Handle_MSG_DSR_CALIBRATION_RESULT(TMcPacket *packet){
               retBody->dc_mm=(get_distance(3,2)+get_distance(2,3))>>1;
               retBody->anchorCount=anchorCount;
               msg_request(msg,ctrl->user,NULL,0);
-            }
+           }
           }  
         }
         errnum=0;

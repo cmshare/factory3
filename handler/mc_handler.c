@@ -102,16 +102,42 @@ void Handle_MSG_USR_CONFIGS(TMcPacket *packet)
     { TMcMsg *ackmsg=msg_alloc(MSG_SUA_CONFIGS,sizeof(TMSG_SUA_CONFIGS)+1024);
       TMSG_SUA_CONFIGS *ackBody=(TMSG_SUA_CONFIGS *)ackmsg->body;
       ackBody->ack_synid=packet->msg.synid;
-      ackBody->json.datalen=1+sprintf((char *)ackBody->json.data,"{\""config_key1"\":\"%s\",\""config_key2"\":\"%s\",\""config_key3"\":\"%s\",\""config_key4"\":\"%s\"}",(row[0])?row[0]:"",(row[1])?row[1]:"",(row[2])?row[2]:"",(row[3])?row[3]:"");
-      ackmsg->bodylen=sizeof(TMSG_SUA_CONFIGS)+ackBody->json.datalen;
-      msg_send(ackmsg,packet,NULL);
+      ackBody->json.datalen=1+sprintf((char *)ackBody->json.data,"{\""config_key1"\":\"%s\",\""config_key2"\":\"%s\",\""config_key3"\":\"%s\",\""config_key4"\":\"%s\"}",(row[0])?row[0]:"",(row[1])?row[1]:"",(row[2])?row[2]:"",(row[3])?row[3]:""); ackmsg->bodylen=sizeof(TMSG_SUA_CONFIGS)+ackBody->json.datalen; msg_send(ackmsg,packet,NULL);
     }
     mysql_free_result(res);  
   }
 }
 
+#include "uwb_model.h"
 void Handle_MSG_USR_TEST(TMcPacket *packet){
-  dtmr_test(dtmr_termLinks);
-//  dtmr_test(dtmr_labLinks);
-  msg_ack_general(packet,0);
+  U32 param=*((U32 *)packet->msg.body);
+  U8 ret=-1;
+
+  if(param>=10){
+    U32 labID=((TTermUser *)packet->terminal)->currentLabID;
+    if(labID>0){
+      ///TUWBAnchor *desAnchor=NULL;
+      TUWBLocalAreaBlock *uwbLab=dtmr_findById(dtmr_labLinks,labID,FALSE);
+      if(uwbLab){
+       int i;
+       TUWBAnchor **pAnchors=uwbLab->anchors;
+       for(i=0;i<uwbLab->anchorCount;i++){
+         if(pAnchors[i]->terminal.id==param){
+           TMcMsg *msg=msg_alloc(MSG_SDR_CALIBRATE,0);
+           msg_request(msg,(TTerminal *)pAnchors[i],NULL,0);
+           ret=0;
+           break;
+         }
+       }
+     }
+     else ret=2;
+    } 
+    else ret=1;
+  }
+  else{
+    ret=0;
+    dtmr_test(dtmr_termLinks);
+    //dtmr_test(dtmr_labLinks);
+  }
+  msg_ack_general(packet,ret);
 }

@@ -28,8 +28,8 @@ void UWB_lab_init(TUWBLocalAreaBlock *lab){
   anchors[2]->position.x=bc * cos(angleB);
   anchors[2]->position.y=bc * sin(angleB);
 
-  lab->compensate21 = (lab->db_mm-lab->da_mm)/1000.0/METERDIV;
-  lab->compensate31 = (lab->dc_mm-lab->da_mm)/1000.0/METERDIV;
+  lab->compensate21 = ((int)(lab->db_mm-lab->da_mm))/1000.0/METERDIV;
+  lab->compensate31 = ((int)(lab->dc_mm-lab->da_mm))/1000.0/METERDIV;
   lab->compensate41 = 0;
 
    /*
@@ -123,7 +123,7 @@ static void brmul(double *a,double *b,int m,int n,int k,double *c)
 
 }
 
-static void CalcCoordinates(TUWBAnchor *anchors[2],double r21,double r31,TPOINT *coor1,TPOINT*coor2)
+static void CalcCoordinates(TUWBAnchor *anchors[3],double r21,double r31,TPOINT *coor1,TPOINT*coor2)
 {   int i;
     double B[2],C[2],N[2],M[2],K[3],A[2][2];
     A[0][0] = anchors[1]->position.x-anchors[0]->position.x;
@@ -406,7 +406,7 @@ TPOINT *UWB_location_calculate(TUWBAnchor *curAchor,TUWBTag *tagNode,int curSync
 // MemoLog("***Input==[%f, %f] Output==[%f, %f]",kalmanTagParams->inputXY[0],kalmanTagParams->inputXY[1],kalmanTagParams->outputKX[0],kalmanTagParams->outputKX[1]);
   Kalman_Filter(lab,kalmanTagParams);
  // MemoLog("###Input==[%f, %f] Output==[%f, %f]",kalmanTagParams->inputXY[0],kalmanTagParams->inputXY[1],kalmanTagParams->outputKX[0],kalmanTagParams->outputKX[1]);
- // printf("[Tag%02d:%02d][%f, %f]  [%f, %f]  [%f, %f]",tagNode->id,curSyncID,kalmanTagParams->outputKX[0],kalmanTagParams->outputKX[1],tagNode->coor2.x,tagNode->coor2.y,inputXY[0],inputXY[1]);
+  //printf("[Tag%02d:%02d][%f, %f]  [%f, %f]  [%f, %f]",tagNode->id,curSyncID,kalmanTagParams->outputKX[0],kalmanTagParams->outputKX[1],tagNode->coor2.x,tagNode->coor2.y,inputXY[0],inputXY[1]);
 
 #if 1
   return (kalman_buffering_completed)?(TPOINT *)kalmanTagParams->outputKX:NULL;
